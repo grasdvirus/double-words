@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -49,5 +50,3 @@ export function TimeUpDialog({ isOpen, onRetry, solution }: TimeUpDialogProps) {
     </Dialog>
   );
 }
-
-    

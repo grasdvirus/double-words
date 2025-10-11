@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, FormEvent, useEffect, useRef } from "react";
@@ -9,7 +10,7 @@ import { TimeUpDialog } from "@/components/time-up-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, UserPlus, LogIn } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, UserPlus, LogIn, Home } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
@@ -73,34 +74,45 @@ export function GameClient() {
   const startTimer = useCallback(() => {
     stopTimer();
     levelStartTimeRef.current = Date.now();
+    setTimeRemaining(LEVEL_TIME);
 
-    const animate = () => {
-      const now = Date.now();
-      const elapsed = Math.floor((now - (levelStartTimeRef.current || now)) / 1000);
+    const animate = (timestamp: number) => {
+      if (!levelStartTimeRef.current) levelStartTimeRef.current = timestamp;
+      
+      const elapsed = (timestamp - levelStartTimeRef.current) / 1000;
       const newTimeRemaining = Math.max(0, LEVEL_TIME - elapsed);
-      setTimeRemaining(newTimeRemaining);
+      setTimeRemaining(Math.ceil(newTimeRemaining));
 
       if (newTimeRemaining > 0) {
         timerRef.current = requestAnimationFrame(animate);
       } else {
         stopTimer();
-        if(!showLevelComplete && !showTimeUp) {
-            setShowTimeUp(true);
-            updateScore(-10); // Penalize for time up
-        }
+        // Check states directly to prevent updates during render
+        setInputValue(val => {
+            setShowTimeUp(show => {
+                if (!show) { // Only trigger if not already shown
+                    updateScore(-10); // Penalize for time up
+                }
+                return true;
+            });
+            return val;
+        });
       }
     };
     timerRef.current = requestAnimationFrame(animate);
-  }, [stopTimer, updateScore, showLevelComplete, showTimeUp]);
+  }, [stopTimer, updateScore]);
   
-  const generateLevel = useCallback(async () => {
+  const generateLevel = useCallback(async (isRetry = false) => {
     setIsSubmitting(true);
     setInputValue("");
     setDisabledLetterIndexes([]);
     setShowLevelComplete(false);
     setShowTimeUp(false);
-    stopTimer();
-    setTimeRemaining(LEVEL_TIME);
+    
+    // Only go to next level if it's not a retry
+    if (!isRetry) {
+        nextLevel();
+    }
 
     const challenge = generateRandomChallenge();
     const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
@@ -137,7 +149,8 @@ export function GameClient() {
         setIsSubmitting(false);
         startTimer();
     }
-  }, [startTimer, stopTimer, toast, settings.language]);
+  }, [settings.language, toast, nextLevel, startTimer]);
+
 
   useEffect(() => {
     generateLevel();
@@ -145,7 +158,8 @@ export function GameClient() {
       stopTimer();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level]); // Regenerate on level change
+  }, [settings.language]); // Only on first load or language change
+
 
   useEffect(() => {
     if (user && firestore && score > 0) {
@@ -248,12 +262,12 @@ export function GameClient() {
   
   const handleNextLevel = () => {
     setShowLevelComplete(false);
-    nextLevel();
+    generateLevel(false); // Generate a new level and advance
   };
 
   const handleRetry = () => {
     setShowTimeUp(false);
-    generateLevel(); // Generate a completely new level instead of retrying
+    generateLevel(true); // Regenerate a challenge for the same level
   };
   
   const progressPercentage = (level % 10) * 10;
@@ -300,7 +314,7 @@ export function GameClient() {
           </CardContent>
       </Card>
       <div className="w-full max-w-3xl flex flex-col gap-4">
-        {!user && (
+        {!user && !showLevelComplete && !showTimeUp && (
           <Alert>
             <UserPlus className="h-4 w-4" />
             <AlertTitle>Vous jouez en tant qu'anonyme</AlertTitle>
@@ -358,7 +372,7 @@ export function GameClient() {
                 </Button>
             </div>
 
-            {isSubmitting && jumbledLetters.length === 0 ? (
+            {jumbledLetters.length === 0 ? (
                 <div className="flex justify-center items-center p-8">
                     <LoaderCircle className="animate-spin h-10 w-10 text-primary" />
                 </div>
@@ -393,5 +407,3 @@ export function GameClient() {
     </div>
   );
 }
-
-    
