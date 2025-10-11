@@ -275,7 +275,7 @@ export function GameClient() {
   const handleNextLevel = () => {
     nextLevel();
     setShowLevelComplete(false);
-    generateLevel(false);
+    // The useEffect watching `level` will trigger generateLevel
   };
 
   const handleRetry = () => {
@@ -398,5 +398,3 @@ export function GameClient() {
     </div>
   );
 }
-
-    

@@ -49,6 +49,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (typeof parsedState.score !== 'number' || isNaN(parsedState.score)) {
           parsedState.score = 0;
         }
+        // Merge saved settings with default settings to avoid missing properties
+        const mergedSettings = { ...defaultState.settings, ...parsedState.settings };
+        parsedState.settings = mergedSettings;
+
         setGameState(parsedState);
       }
     } catch (error) {
@@ -91,8 +95,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetProgress = useCallback(() => {
-    if(window.confirm("Êtes-vous sûr de vouloir réinitialiser votre progression ? Cela réinitialisera votre score local, mais pas votre meilleur score au classement.")) {
-      setGameState(defaultState);
+    if(window.confirm("Êtes-vous sûr de vouloir réinitialiser votre progression ? Votre score et votre niveau seront réinitialisés.")) {
+      setGameState(prev => ({...defaultState, settings: prev.settings}));
     }
   }, []);
 
