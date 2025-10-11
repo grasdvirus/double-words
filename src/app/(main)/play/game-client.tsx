@@ -17,6 +17,10 @@ import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { UserPlus, LogIn } from "lucide-react";
+import { signInWithGoogle } from "@/firebase/auth";
+import { useAuth } from "@/firebase/provider";
 
 
 const LEVEL_TIME = 60; // 60 seconds per level
@@ -40,6 +44,7 @@ const generateRandomChallenge = () => {
 
 export function GameClient() {
   const { user } = useUser();
+  const auth = useAuth();
   const firestore = useFirestore();
   const { level, score, updateScore, nextLevel, history, addWordToHistory, settings } = useGame();
   const [inputValue, setInputValue] = useState("");
@@ -68,11 +73,10 @@ export function GameClient() {
   }, []);
 
   const handleTimeUp = useCallback(() => {
-    if (!showLevelComplete && !showTimeUp) {
       updateScore(-10); // Penalize for time up
       setShowTimeUp(true);
-    }
-  }, [showLevelComplete, showTimeUp, updateScore]);
+  }, [updateScore]);
+
 
   const startTimer = useCallback(() => {
     stopTimer();
@@ -289,23 +293,19 @@ export function GameClient() {
 
   return (
     <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
-       <Card className={cn(
-            "mb-4 w-full max-w-3xl transition-all duration-500",
-            "bg-transparent border-transparent"
-          )}>
-        <CardContent className="p-2 text-center">
-            <div className={cn(
-              "flex items-center justify-center gap-2 font-mono text-2xl md:text-3xl tracking-widest text-foreground",
-              !showTimeUp && "blur-md select-none"
-            )}>
-              {solutionWord ? solutionWord.split('').map((letter, index) => (
-                <span key={index}>{letter}</span>
-              )) : (
-                <span className="blur-md select-none">SOLUTION</span>
-              )}
-            </div>
-          </CardContent>
-      </Card>
+       {!user && (
+           <Alert className="mb-8 text-left max-w-md w-full">
+            <UserPlus className="h-4 w-4" />
+            <AlertTitle>Connectez-vous pour être classé !</AlertTitle>
+            <AlertDescription className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <span>Votre score n'apparaîtra pas dans le classement si vous jouez en tant qu'anonyme.</span>
+              <Button size="sm" onClick={() => auth && signInWithGoogle(auth)} className="flex-shrink-0">
+                <LogIn className="mr-2 h-4 w-4" />
+                Connexion
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
       <div className="w-full max-w-3xl flex flex-col gap-4">
         
         <Card>
@@ -388,3 +388,5 @@ export function GameClient() {
     </div>
   );
 }
+
+    
