@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -63,16 +64,20 @@ export function LeaderboardClient() {
                   return (
                     <TableRow key={player.id} className="hover:bg-white/5">
                       <TableCell className="font-medium text-center text-lg">{index + 1}</TableCell>
-                      <TableCell className="font-semibold flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={player.photoURL} alt={player.displayName} />
-                          <AvatarFallback>{player.displayName?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        {player.displayName}
+                      <TableCell>
+                        <div className="flex items-center gap-3 font-semibold">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={player.photoURL} alt={player.displayName} />
+                            <AvatarFallback>{player.displayName?.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          {player.displayName}
+                        </div>
                       </TableCell>
-                      <TableCell className="flex items-center gap-2">
-                        {tier.icon}
-                        {tier.name}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {tier.icon}
+                          {tier.name}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right font-mono text-lg">{player.score}</TableCell>
                     </TableRow>
