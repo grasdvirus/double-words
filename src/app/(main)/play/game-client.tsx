@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback, FormEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGame } from "@/hooks/use-game";
 import { gameLevels } from "@/lib/game-levels";
@@ -13,6 +12,7 @@ import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
 import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
+import { cn } from "@/lib/utils";
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -45,6 +45,7 @@ export function GameClient() {
 
   const handleTimeUp = useCallback(() => {
     setIsTimeUp(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startTimer = useCallback(() => {
@@ -63,22 +64,24 @@ export function GameClient() {
     }, 1000);
     setTimerId(newTimerId);
   }, [timerId, handleTimeUp]);
-
+  
   useEffect(() => {
     if (isTimeUp) {
       toast({
         variant: "destructive",
         title: "Temps écoulé !",
-        description: "Vous avez perdu 10 points. Essayez d'être plus rapide !",
+        description: "Vous avez perdu 10 points. Le mot était : " + solutionWord,
       });
       updateScore(-10);
       nextLevel();
     }
-  }, [isTimeUp, nextLevel, toast, updateScore]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTimeUp]);
 
 
   const generateJumbledLetters = useCallback(async () => {
     setIsSubmitting(true);
+    setInputValue("");
     try {
       const result = await evaluateAnswer({
         wordOrPhrase: '',
@@ -113,7 +116,6 @@ export function GameClient() {
 
   useEffect(() => {
     generateJumbledLetters();
-    setInputValue("");
 
     return () => {
       if (timerId) clearInterval(timerId);
@@ -122,6 +124,7 @@ export function GameClient() {
   }, [level]);
 
   const handleKeyPress = (key: string, index: number) => {
+    if (inputValue.length >= solutionWord.length) return;
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -176,10 +179,24 @@ export function GameClient() {
         description: currentLevelData.description,
       });
 
-      if (!evaluationResult.isValid) {
+      if (cleanedInput.toUpperCase() !== solutionWord) {
         toast({
           variant: "default",
           title: "Presque !",
+          description: "Ce n'est pas le bon mot. Essayez encore !",
+        });
+        updateScore(-5);
+        setIsSubmitting(false);
+        // Reset for next try
+        generateJumbledLetters();
+        setInputValue("");
+        return;
+      }
+
+      if (!evaluationResult.isValid) {
+        toast({
+          variant: "default",
+          title: "Hmm...",
           description: evaluationResult.feedback,
         });
         updateScore(-5);
@@ -230,6 +247,28 @@ export function GameClient() {
   };
   
   const progressPercentage = (level / gameLevels.length) * 100;
+  
+  const renderInputBoxes = () => {
+    const boxes = [];
+    const wordLength = solutionWord.length > 0 ? solutionWord.length : 10; // Default to 10 if not ready
+
+    for (let i = 0; i < wordLength; i++) {
+        const char = inputValue[i] || '';
+        boxes.push(
+            <div
+                key={i}
+                className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
+                    "bg-card",
+                    char && "border-primary ring-2 ring-primary"
+                )}
+            >
+                {char}
+            </div>
+        );
+    }
+    return boxes;
+  };
 
   return (
     <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
@@ -267,17 +306,16 @@ export function GameClient() {
         <div className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-              <Input
-                type="text"
-                value={inputValue}
-                readOnly
-                placeholder="VOTRE RÉPONSE..."
-                className="h-14 text-center text-xl tracking-widest bg-card"
-                disabled={isSubmitting}
-              />
-              <Button type="button" size="icon" variant="ghost" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0}>
-                <Undo2 className="h-5 w-5"/>
-              </Button>
+                <div className="flex justify-center items-center gap-2 flex-wrap">
+                    {solutionWord ? renderInputBoxes() : (
+                      <div className="h-12 flex items-center justify-center">
+                        <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
+                      </div>
+                    )}
+                </div>
+                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0}>
+                    <Undo2 className="h-5 w-5"/>
+                </Button>
             </div>
 
             {isSubmitting && jumbledLetters.length === 0 ? (
@@ -288,7 +326,7 @@ export function GameClient() {
                 <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting} />
             )}
 
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !inputValue.trim()}>
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length}>
               {isSubmitting ? (
                 <LoaderCircle className="animate-spin mr-2" />
               ) : (
@@ -310,5 +348,3 @@ export function GameClient() {
     </div>
   );
 }
-
-    
