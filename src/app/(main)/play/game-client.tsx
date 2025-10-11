@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, FormEvent, useEffect } from "react";
+import { useState, useMemo, useCallback, FormEvent, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGame } from "@/hooks/use-game";
@@ -50,39 +50,54 @@ export function GameClient() {
   const [jumbledLetters, setJumbledLetters] = useState<string[]>([]);
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
-  const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
   const [currentChallenge, setCurrentChallenge] = useState("");
   const [currentDescription, setCurrentDescription] = useState("");
 
+  const timerRef = useRef<number | null>(null);
+  const levelStartTimeRef = useRef<number | null>(null);
+
   const { toast } = useToast();
+  
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      cancelAnimationFrame(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
   const startTimer = useCallback(() => {
-    if (timerId) clearInterval(timerId);
+    stopTimer();
     setShowTimeUp(false);
-    setTimeRemaining(LEVEL_TIME);
-    const newTimerId = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(newTimerId);
-          setShowTimeUp(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    setTimerId(newTimerId);
-  }, [timerId]);
+    levelStartTimeRef.current = Date.now();
 
+    const animate = () => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - (levelStartTimeRef.current || now)) / 1000);
+      const newTimeRemaining = Math.max(0, LEVEL_TIME - elapsed);
+      setTimeRemaining(newTimeRemaining);
+
+      if (newTimeRemaining > 0) {
+        timerRef.current = requestAnimationFrame(animate);
+      } else {
+        setShowTimeUp(true);
+        stopTimer();
+      }
+    };
+    timerRef.current = requestAnimationFrame(animate);
+  }, [stopTimer]);
+  
   useEffect(() => {
     if (showTimeUp) {
-      if(timerId) clearInterval(timerId);
+      stopTimer();
       updateScore(-10); // Penalize for time up
     }
-  }, [showTimeUp, updateScore, timerId]);
+  }, [showTimeUp, updateScore, stopTimer]);
+
 
   const generateLevel = useCallback(async () => {
     setIsSubmitting(true);
     setInputValue("");
+    stopTimer();
 
     const challenge = generateRandomChallenge();
     const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
@@ -119,13 +134,13 @@ export function GameClient() {
     } finally {
         setIsSubmitting(false);
     }
-  }, [startTimer, toast, settings.language]);
+  }, [startTimer, stopTimer, toast, settings.language]);
 
   useEffect(() => {
     generateLevel();
 
     return () => {
-      if (timerId) clearInterval(timerId);
+      stopTimer();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level]);
@@ -188,7 +203,7 @@ export function GameClient() {
     if (!inputValue.trim() || isSubmitting || showTimeUp) return;
 
     setIsSubmitting(true);
-    if (timerId) clearInterval(timerId);
+    stopTimer();
     const cleanedInput = inputValue.trim();
 
     if (cleanedInput.toUpperCase() !== solutionWord) {
@@ -297,7 +312,7 @@ export function GameClient() {
               </div>
             </div>
             <CardTitle className="text-2xl font-semibold">
-              Défi : "{currentDescription}"
+              Défi : {currentDescription}
             </CardTitle>
             <Progress value={progressPercentage} className="w-full mt-4" />
           </CardHeader>
