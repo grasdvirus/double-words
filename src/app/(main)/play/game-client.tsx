@@ -105,6 +105,7 @@ export function GameClient() {
     setDisabledLetterIndexes([]);
     setShowLevelComplete(false);
     setShowTimeUp(false);
+    setSolutionWord('');
     
     // Check if we are within predefined levels
     const predefinedLevel = gameLevels.find(l => l.level === level);
@@ -287,28 +288,32 @@ export function GameClient() {
   const progressPercentage = Math.min(100, (level / 10) * 100);
   
   const renderInputBoxes = () => {
-    const boxes = [];
-    const wordLength = solutionWord.length > 0 ? solutionWord.length : 10; // Default to 10 if not ready
-
-    for (let i = 0; i < wordLength; i++) {
-        const char = inputValue[i] || '';
-        boxes.push(
-            <div
-                key={i}
-                className={cn(
-                    "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
-                    "bg-card transition-all duration-300",
-                    char && "border-primary ring-2 ring-primary animate-pop-in"
-                )}
-            >
-                {char}
+    if (!solutionWord) {
+        return (
+            <div className="h-12 flex items-center justify-center">
+                <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
             </div>
         );
     }
+
     return (
       <div className="relative">
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
-          {boxes}
+          {Array.from({ length: solutionWord.length }).map((_, i) => {
+            const char = inputValue[i] || '';
+            return (
+              <div
+                  key={i}
+                  className={cn(
+                      "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
+                      "bg-card transition-all duration-300",
+                      char && "border-primary ring-2 ring-primary animate-pop-in"
+                  )}
+              >
+                  {char}
+              </div>
+            );
+          })}
         </div>
         {isWrong && <span className="text-3xl absolute -right-10 top-1/2 -translate-y-1/2 animate-pop-in">❌</span>}
       </div>
@@ -353,11 +358,7 @@ export function GameClient() {
         <div className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-                {isSubmitting && !solutionWord && !isWrong ? (
-                  <div className="h-12 flex items-center justify-center">
-                    <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
-                  </div>
-                ) : renderInputBoxes()}
+                {renderInputBoxes()}
                 <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || showTimeUp || showLevelComplete}>
                     <Undo2 className="h-5 w-5"/>
                 </Button>
