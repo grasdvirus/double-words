@@ -70,9 +70,10 @@ export function GameClient() {
   }, []);
 
   const handleTimeUp = useCallback(() => {
+      stopTimer();
       updateScore(-10); // Penalize for time up
       setShowTimeUp(true);
-  }, [updateScore]);
+  }, [updateScore, stopTimer]);
 
 
   const startTimer = useCallback(() => {
@@ -89,7 +90,6 @@ export function GameClient() {
       if (newTimeRemaining > 0) {
         timerRef.current = requestAnimationFrame(animate);
       } else {
-        stopTimer();
         handleTimeUp();
       }
     };
@@ -104,11 +104,9 @@ export function GameClient() {
     setShowTimeUp(false);
     
     if (!isRetry) {
-        // This is a new level, so generate a new challenge
         nextLevel();
     }
     
-    // For both new levels and retries, generate a new challenge.
     const challenge = generateRandomChallenge();
     const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
     setCurrentChallenge(challenge);
@@ -224,8 +222,10 @@ export function GameClient() {
         setIsWrong(false);
         setInputValue("");
         setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
+      }, 800); // Duration of the shake animation
+      setTimeout(() => {
         setIsSubmitting(false);
-      }, 500); // Duration of the shake animation
+      }, 820);
       return;
     }
     
@@ -259,7 +259,7 @@ export function GameClient() {
   };
 
   const handleRetry = () => {
-    generateLevel(true); // Regenerate a challenge for the same level
+    generateLevel(true); // Regenerate a challenge for the same level number
   };
   
   const progressPercentage = (level % 10) * 10;
@@ -284,9 +284,11 @@ export function GameClient() {
         );
     }
     return (
-      <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
-        {isWrong && <span className="text-3xl absolute -left-10">❌</span>}
-        {boxes}
+      <div className="relative">
+        <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
+          {boxes}
+        </div>
+        {isWrong && <span className="text-3xl absolute -right-10 top-1/2 -translate-y-1/2">❌</span>}
       </div>
     );
   };
@@ -329,7 +331,7 @@ export function GameClient() {
         <div className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-                {isSubmitting && !solutionWord ? (
+                {isSubmitting && !solutionWord && !isWrong ? (
                   <div className="h-12 flex items-center justify-center">
                     <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
                   </div>
@@ -374,3 +376,5 @@ export function GameClient() {
     </div>
   );
 }
+
+    
