@@ -6,13 +6,24 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGame } from "@/hooks/use-game";
 import { gameLevels } from "@/lib/game-levels";
-import { VirtualKeyboard } from "@/components/virtual-keyboard";
 import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2 } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { LetterGrid } from "@/components/letter-grid";
+
+const LEVEL_TIME = 60; // 60 seconds per level
+
+// Helper to shuffle an array
+const shuffle = (array: string[]) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
 
 export function GameClient() {
   const { level, score, updateScore, nextLevel, history, addWordToHistory } = useGame();
@@ -20,20 +31,113 @@ export function GameClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [lastRoundPoints, setLastRoundPoints] = useState({ points: 0, bonus: 0 });
+  const [solutionWord, setSolutionWord] = useState('');
+  const [jumbledLetters, setJumbledLetters] = useState<string[]>([]);
+  const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
+  const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
+  const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
+
   const { toast } = useToast();
 
   const currentLevelData = useMemo(() => gameLevels[level - 1], [level]);
 
+  const startTimer = useCallback(() => {
+    if (timerId) clearInterval(timerId);
+    setTimeRemaining(LEVEL_TIME);
+    const newTimerId = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(newTimerId);
+          handleTimeUp();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    setTimerId(newTimerId);
+  }, [timerId]);
+
+
+  const generateJumbledLetters = useCallback(async () => {
+    setIsSubmitting(true);
+    try {
+      const result = await evaluateAnswer({
+        wordOrPhrase: '',
+        challenge: currentLevelData.challenge,
+        description: currentLevelData.description,
+        solutionWord: currentLevelData.solutionWord
+      });
+      const word = result.solutionWord.toUpperCase();
+      setSolutionWord(word);
+
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const solutionLetters = word.split('');
+      const extraLetters: string[] = [];
+      while (extraLetters.length < 4) {
+        const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+        if (!solutionLetters.includes(randomLetter)) {
+          extraLetters.push(randomLetter);
+        }
+      }
+      
+      const allLetters = shuffle([...solutionLetters, ...extraLetters]);
+      setJumbledLetters(allLetters);
+      setDisabledLetterIndexes(new Array(allLetters.length).fill(false));
+      startTimer();
+    } catch(e) {
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
+    } finally {
+        setIsSubmitting(false);
+    }
+  }, [currentLevelData, startTimer, toast]);
+
   useEffect(() => {
+    generateJumbledLetters();
     setInputValue("");
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
   }, [level]);
 
-  const handleKeyPress = useCallback((key: string) => {
+  const handleTimeUp = () => {
+    toast({
+      variant: "destructive",
+      title: "Temps écoulé !",
+      description: "Vous avez perdu 10 points. Essayez d'être plus rapide !",
+    });
+    updateScore(-10);
+    nextLevel();
+  };
+
+  const handleKeyPress = (key: string, index: number) => {
     setInputValue((prev) => prev + key);
-  }, []);
+    setDisabledLetterIndexes(prev => {
+        const newDisabled = [...prev];
+        newDisabled[index] = true;
+        return newDisabled;
+    });
+  };
   
   const handleBackspace = () => {
+     if (inputValue.length === 0) return;
+    
+    const lastChar = inputValue[inputValue.length - 1];
     setInputValue((prev) => prev.slice(0, -1));
+
+    // Re-enable the last used letter
+    let reEnabled = false;
+    // Iterate backwards to find the last disabled button corresponding to the character
+    for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
+        if(jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
+            setDisabledLetterIndexes(prev => {
+                const newDisabled = [...prev];
+                newDisabled[i] = false;
+                return newDisabled;
+            });
+            reEnabled = true;
+        }
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -41,9 +145,9 @@ export function GameClient() {
     if (!inputValue.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
+    if (timerId) clearInterval(timerId);
     const cleanedInput = inputValue.trim();
 
-    // 1. Check if challenge is met using AI
     try {
       const evaluationResult = await evaluateAnswer({
         wordOrPhrase: cleanedInput,
@@ -59,6 +163,9 @@ export function GameClient() {
         });
         updateScore(-5);
         setIsSubmitting(false);
+        // Reset for next try
+        generateJumbledLetters();
+        setInputValue("");
         return;
       }
     } catch (error) {
@@ -72,7 +179,6 @@ export function GameClient() {
        return;
     }
     
-    // 2. Check for originality
     let bonusPoints = 0;
     try {
       const originalityResult = await checkOriginality({
@@ -84,18 +190,15 @@ export function GameClient() {
       }
     } catch (error) {
       console.error("AI originality check failed:", error);
-      // Non-critical, so we can continue without it
     }
     
-    // 3. Calculate points
-    let basePoints = 10;
-    let creativityBonus = cleanedInput.split(' ').length > 10 ? 5 : 0;
-    const totalPoints = basePoints + bonusPoints + creativityBonus;
+    const timeBonus = Math.floor(timeRemaining / 10); // Bonus for remaining time
+    const totalPoints = 10 + bonusPoints + timeBonus;
 
     updateScore(totalPoints);
     addWordToHistory(cleanedInput);
     
-    setLastRoundPoints({ points: totalPoints, bonus: bonusPoints });
+    setLastRoundPoints({ points: totalPoints, bonus: bonusPoints + timeBonus });
     setShowLevelComplete(true);
     setIsSubmitting(false);
   };
@@ -103,7 +206,6 @@ export function GameClient() {
   const handleContinue = () => {
     setShowLevelComplete(false);
     nextLevel();
-    setInputValue("");
   };
   
   const progressPercentage = (level / gameLevels.length) * 100;
@@ -117,6 +219,10 @@ export function GameClient() {
               <div className="text-left">
                 <p className="text-sm text-muted-foreground">Niveau</p>
                 <p className="text-2xl font-bold text-primary">{level}</p>
+              </div>
+               <div className="flex flex-col items-center">
+                 <Clock className="h-6 w-6 text-primary" />
+                 <p className="text-2xl font-bold text-primary">{timeRemaining}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Score</p>
@@ -136,16 +242,24 @@ export function GameClient() {
               <Input
                 type="text"
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value.toUpperCase())}
-                placeholder="ÉCRIVEZ VOTRE RÉPONSE ICI..."
+                readOnly
+                placeholder="VOTRE RÉPONSE..."
                 className="h-14 text-center text-xl tracking-widest bg-card"
-                autoFocus
                 disabled={isSubmitting}
               />
               <Button type="button" size="icon" variant="ghost" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0}>
                 <Undo2 className="h-5 w-5"/>
               </Button>
             </div>
+
+            {isSubmitting && jumbledLetters.length === 0 ? (
+                <div className="flex justify-center items-center p-8">
+                    <LoaderCircle className="animate-spin h-10 w-10 text-primary" />
+                </div>
+            ) : (
+                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting} />
+            )}
+
             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !inputValue.trim()}>
               {isSubmitting ? (
                 <LoaderCircle className="animate-spin mr-2" />
@@ -155,8 +269,6 @@ export function GameClient() {
               Valider
             </Button>
           </form>
-
-          <VirtualKeyboard onKeyPress={handleKeyPress} disabled={isSubmitting} />
         </div>
       </div>
 

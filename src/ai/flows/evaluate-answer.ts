@@ -19,6 +19,7 @@ const EvaluateAnswerInputSchema = z.object({
   description: z
     .string()
     .describe('The description of the challenge for the level.'),
+  solutionWord: z.string().optional().describe('An optional solution word for the level.'),
 });
 
 export type EvaluateAnswerInput = z.infer<typeof EvaluateAnswerInputSchema>;
@@ -32,6 +33,7 @@ const EvaluateAnswerOutputSchema = z.object({
     .describe(
       'A friendly and personalized feedback message for the user about their answer.'
     ),
+  solutionWord: z.string().describe("A valid word that contains the challenge letters. It must be in uppercase.")
 });
 
 export type EvaluateAnswerOutput = z.infer<typeof EvaluateAnswerOutputSchema>;
@@ -57,6 +59,7 @@ const evaluateAnswerPrompt = ai.definePrompt({
   3.  Write a short, friendly, and personalized 'feedback' message for the user.
       - If the answer is invalid (doesn't contain "{{challenge}}"), the feedback should gently point it out and be encouraging. For example: "Presque ! N'oubliez pas d'inclure '{{challenge}}' dans votre réponse." or "Belle tentative, mais il manque '{{challenge}}'. Essaie encore !".
       - If the answer is valid, the feedback should be positive and confirm they met the challenge. For example: "Bien joué ! Votre réponse contient bien '{{challenge}}'".
+  4. Generate a 'solutionWord'. This word must be a single, valid French word that contains the letters from the 'challenge' field. It must be in UPPERCASE. If a 'solutionWord' is provided in the input, use that one. Otherwise, generate a new one.
 
   Analyze the user's submission and return the result.`,
 });
