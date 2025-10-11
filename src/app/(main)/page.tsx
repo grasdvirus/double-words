@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { FloatingLettersBackground } from '@/components/floating-letters-background';
-import { Play, Trophy, BookOpen, Settings, UserPlus, LogIn, Swords } from 'lucide-react';
+import { Trophy, Swords, BookOpen, Settings, UserPlus, LogIn } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithGoogle } from '@/firebase/auth';
