@@ -15,7 +15,7 @@ import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
-import { setDocumentNonBlocking } from "@/firebase";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -67,7 +67,6 @@ export function GameClient() {
 
   const startTimer = useCallback(() => {
     stopTimer();
-    setShowTimeUp(false);
     levelStartTimeRef.current = Date.now();
 
     const animate = () => {
@@ -79,62 +78,70 @@ export function GameClient() {
       if (newTimeRemaining > 0) {
         timerRef.current = requestAnimationFrame(animate);
       } else {
-        setShowTimeUp(true);
         stopTimer();
+        if(!showLevelComplete) {
+            setShowTimeUp(true);
+            updateScore(-10); // Penalize for time up
+        }
       }
     };
     timerRef.current = requestAnimationFrame(animate);
-  }, [stopTimer]);
+  }, [stopTimer, updateScore, showLevelComplete]);
   
-  useEffect(() => {
-    if (showTimeUp) {
-      stopTimer();
-      updateScore(-10); // Penalize for time up
+  const generateLevel = useCallback(async (isRetry = false) => {
+    if (!isRetry) {
+        setIsSubmitting(true);
     }
-  }, [showTimeUp, updateScore, stopTimer]);
-
-
-  const generateLevel = useCallback(async () => {
-    setIsSubmitting(true);
     setInputValue("");
+    setDisabledLetterIndexes([]);
+    setShowLevelComplete(false);
+    setShowTimeUp(false);
     stopTimer();
+    setTimeRemaining(LEVEL_TIME);
 
-    const challenge = generateRandomChallenge();
-    const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
-    setCurrentChallenge(challenge);
-    setCurrentDescription(description);
+    // Only generate a new word if it's not a retry
+    if (!isRetry) {
+        const challenge = generateRandomChallenge();
+        const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
+        setCurrentChallenge(challenge);
+        setCurrentDescription(description);
 
-    try {
-      const result = await evaluateAnswer({
-        wordOrPhrase: '',
-        challenge: challenge,
-        description: description,
-        language: settings.language,
-      });
-      const word = result.solutionWord.toUpperCase();
-      setSolutionWord(word);
-      setHint(result.hint);
+        try {
+          const result = await evaluateAnswer({
+            wordOrPhrase: '',
+            challenge: challenge,
+            description: description,
+            language: settings.language,
+          });
+          const word = result.solutionWord.toUpperCase();
+          setSolutionWord(word);
+          setHint(result.hint);
 
-      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-      const solutionLetters = word.split('');
-      const extraLetters: string[] = [];
-      while (extraLetters.length < 4) {
-        const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
-        if (!solutionLetters.includes(randomLetter)) {
-          extraLetters.push(randomLetter);
+          const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+          const solutionLetters = word.split('');
+          const extraLetters: string[] = [];
+          while (extraLetters.length < 4) {
+            const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+            if (!solutionLetters.includes(randomLetter)) {
+              extraLetters.push(randomLetter);
+            }
+          }
+          
+          const allLetters = shuffle([...solutionLetters, ...extraLetters]);
+          setJumbledLetters(allLetters);
+        } catch(e) {
+            toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
+        } finally {
+            setIsSubmitting(false);
         }
-      }
-      
-      const allLetters = shuffle([...solutionLetters, ...extraLetters]);
-      setJumbledLetters(allLetters);
-      setDisabledLetterIndexes(new Array(allLetters.length).fill(false));
-      startTimer();
-    } catch(e) {
-        toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
-    } finally {
-        setIsSubmitting(false);
+    } else {
+        // On retry, just reshuffle existing letters
+        setJumbledLetters(prev => shuffle([...prev]));
     }
-  }, [startTimer, stopTimer, toast, settings.language]);
+    
+    setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
+    startTimer();
+  }, [startTimer, stopTimer, toast, settings.language, jumbledLetters.length]);
 
   useEffect(() => {
     generateLevel();
@@ -203,24 +210,23 @@ export function GameClient() {
     if (!inputValue.trim() || isSubmitting || showTimeUp) return;
 
     setIsSubmitting(true);
-    stopTimer();
     const cleanedInput = inputValue.trim();
 
     if (cleanedInput.toUpperCase() !== solutionWord) {
       toast({
-        variant: "default",
-        title: "Presque !",
+        variant: "destructive",
+        title: "Incorrect !",
         description: "Ce n'est pas le bon mot. Essayez encore !",
       });
       updateScore(-5);
-      setIsSubmitting(false);
-      // Reset for next try
+      // Reset for next try on the same level
       setInputValue("");
       setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
-      startTimer();
+      setIsSubmitting(false);
       return;
     }
     
+    stopTimer();
     let bonusPoints = 0;
     try {
       const originalityResult = await checkOriginality({
@@ -245,10 +251,13 @@ export function GameClient() {
     setIsSubmitting(false);
   };
   
-  const handleContinue = () => {
+  const handleNextLevel = () => {
     setShowLevelComplete(false);
-    setShowTimeUp(false);
     nextLevel();
+  };
+
+  const handleRetry = () => {
+    generateLevel(true);
   };
   
   const progressPercentage = (level % 10) * 10;
@@ -362,14 +371,14 @@ export function GameClient() {
 
       <LevelCompleteDialog
         isOpen={showLevelComplete}
-        onContinue={handleContinue}
+        onContinue={handleNextLevel}
         level={level}
         points={lastRoundPoints.points}
         bonusPoints={lastRoundPoints.bonus}
       />
       <TimeUpDialog 
         isOpen={showTimeUp}
-        onContinue={handleContinue}
+        onRetry={handleRetry}
         solution={solutionWord}
       />
     </div>

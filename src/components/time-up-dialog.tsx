@@ -13,13 +13,13 @@ import { TimerOff } from "lucide-react";
 
 interface TimeUpDialogProps {
   isOpen: boolean;
-  onContinue: () => void;
+  onRetry: () => void;
   solution: string;
 }
 
-export function TimeUpDialog({ isOpen, onContinue, solution }: TimeUpDialogProps) {
+export function TimeUpDialog({ isOpen, onRetry, solution }: TimeUpDialogProps) {
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onContinue()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onRetry()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">
@@ -41,8 +41,8 @@ export function TimeUpDialog({ isOpen, onContinue, solution }: TimeUpDialogProps
           </p>
         </div>
         <DialogFooter>
-          <Button type="button" onClick={onContinue} className="w-full">
-            Niveau Suivant
+          <Button type="button" onClick={onRetry} className="w-full">
+            Réessayer
           </Button>
         </DialogFooter>
       </DialogContent>

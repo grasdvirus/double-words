@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Swords, Trophy, BookOpen, Settings, Home, Menu, User, LogIn, LogOut, Loader2, Pause, Play } from "lucide-react";
+import { Swords, Trophy, BookOpen, Settings, Home, Menu, User, LogIn, LogOut, Loader2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -53,7 +53,7 @@ function AuthButton() {
                 </Avatar>
                 <p className="text-xl font-semibold">{user.displayName}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
-                <Button onClick={() => signOut(auth)} variant="destructive" className="mt-4">
+                <Button onClick={() => auth && signOut(auth)} variant="destructive" className="mt-4">
                   <LogOut className="mr-2"/>
                   Déconnexion
                 </Button>
@@ -105,16 +105,11 @@ export function SiteHeader() {
 
         <div className="flex flex-1 items-center justify-end gap-2">
             {pathname === "/play" && (
-              <>
                  <Button asChild variant="ghost" size="icon">
                   <Link href="/" aria-label="Accueil">
                     <Home />
                   </Link>
                 </Button>
-                <Button variant="ghost" size="icon" aria-label="Pause">
-                  <Pause />
-                </Button>
-              </>
             )}
             <AuthButton />
         
