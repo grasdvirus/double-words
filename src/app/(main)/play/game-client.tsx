@@ -56,6 +56,8 @@ export function GameClient() {
   const [currentChallenge, setCurrentChallenge] = useState("");
   const [currentDescription, setCurrentDescription] = useState("");
   const [isWrong, setIsWrong] = useState(false);
+  const [scoreKey, setScoreKey] = useState(0);
+  const [levelKey, setLevelKey] = useState(0);
 
 
   const timerRef = useRef<number | null>(null);
@@ -103,10 +105,6 @@ export function GameClient() {
     setDisabledLetterIndexes([]);
     setShowLevelComplete(false);
     setShowTimeUp(false);
-    
-    if (!isRetry) {
-        // nextLevel() is called only when moving to a truly new level, not on retry
-    }
     
     // Check if we are within predefined levels
     const predefinedLevel = gameLevels.find(l => l.level === level);
@@ -178,7 +176,12 @@ export function GameClient() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
     }
+    setScoreKey(prev => prev + 1);
   }, [score, user, firestore]);
+
+  useEffect(() => {
+    setLevelKey(prev => prev + 1);
+  }, [level]);
 
   const handleKeyPress = (key: string, index: number) => {
     if (inputValue.length >= solutionWord.length || showTimeUp) return;
@@ -289,8 +292,8 @@ export function GameClient() {
                 key={i}
                 className={cn(
                     "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
-                    "bg-card",
-                    char && "border-primary ring-2 ring-primary"
+                    "bg-card transition-all duration-300",
+                    char && "border-primary ring-2 ring-primary animate-pop-in"
                 )}
             >
                 {char}
@@ -302,14 +305,14 @@ export function GameClient() {
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
           {boxes}
         </div>
-        {isWrong && <span className="text-3xl absolute -right-10 top-1/2 -translate-y-1/2">❌</span>}
+        {isWrong && <span className="text-3xl absolute -right-10 top-1/2 -translate-y-1/2 animate-pop-in">❌</span>}
       </div>
     );
   };
 
 
   return (
-    <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
+    <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1 animate-fade-in-up">
       <div className="w-full max-w-3xl flex flex-col gap-4">
         
         <Card>
@@ -317,7 +320,7 @@ export function GameClient() {
             <div className="flex justify-between items-center mb-2">
               <div className="text-left">
                 <p className="text-sm text-muted-foreground">Niveau</p>
-                <p className="text-2xl font-bold text-primary">{level}</p>
+                <p key={`level-${levelKey}`} className="text-2xl font-bold text-primary animate-pop-in">{level}</p>
               </div>
                <div className="flex flex-col items-center">
                  <Clock className="h-6 w-6 text-primary" />
@@ -325,7 +328,7 @@ export function GameClient() {
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Score</p>
-                <p className="text-2xl font-bold text-primary">{score}</p>
+                <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
               </div>
             </div>
             <CardTitle className="text-2xl font-semibold">

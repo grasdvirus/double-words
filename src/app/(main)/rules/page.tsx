@@ -3,7 +3,7 @@ import { CheckCircle, XCircle, Award, Star, TrendingUp, Gem, Trophy } from "luci
 
 export default function RulesPage() {
   return (
-    <div className="container py-8 max-w-4xl mx-auto">
+    <div className="container py-8 max-w-4xl mx-auto animate-fade-in">
       <h1 className="text-4xl font-bold text-primary mb-8 text-center">Règles du jeu</h1>
       
       <div className="space-y-8">

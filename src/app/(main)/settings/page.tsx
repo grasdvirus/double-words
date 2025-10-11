@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const { settings, updateSettings, resetProgress } = useGame();
 
   return (
-    <div className="container py-8 max-w-2xl mx-auto">
+    <div className="container py-8 max-w-2xl mx-auto animate-fade-in">
       <h1 className="text-4xl font-bold text-primary mb-8 text-center">Paramètres</h1>
 
       <div className="space-y-8">
