@@ -10,7 +10,7 @@ import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 
@@ -148,6 +148,16 @@ export function GameClient() {
     }
   };
 
+  const showHint = () => {
+    if (solutionWord) {
+      toast({
+        title: "Indice",
+        description: `Le mot commence par la lettre : ${solutionWord[0]}`,
+      });
+      updateScore(-2); // Penalize for using hint
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isSubmitting) return;
@@ -244,6 +254,13 @@ export function GameClient() {
           </CardHeader>
         </Card>
         
+        <div className="flex justify-center mb-2">
+            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting}>
+                <Lightbulb className="mr-2 h-4 w-4" />
+                Indice (-2 points)
+            </Button>
+        </div>
+        
         <div className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
@@ -290,3 +307,5 @@ export function GameClient() {
     </div>
   );
 }
+
+    
