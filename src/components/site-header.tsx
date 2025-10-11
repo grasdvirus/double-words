@@ -4,7 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Swords, Trophy, BookOpen, Settings, Home } from "lucide-react";
+import { Swords, Trophy, BookOpen, Settings, Home, Menu } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetClose
+} from "@/components/ui/sheet";
 
 const navItems = [
   { href: "/play", label: "Jouer", icon: Swords },
@@ -27,8 +33,9 @@ export function SiteHeader() {
             </span>
           </Link>
         </div>
-        <div className="flex flex-1 items-center justify-end space-x-2">
-        <nav className="flex items-center space-x-1">
+        
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex flex-1 items-center justify-end space-x-1">
           {navItems.map((item) => (
             <Button
               key={item.href}
@@ -43,6 +50,37 @@ export function SiteHeader() {
             </Button>
           ))}
         </nav>
+        
+        {/* Mobile Navigation */}
+        <div className="flex flex-1 items-center justify-end md:hidden">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Ouvrir le menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right">
+              <nav className="flex flex-col gap-4 mt-8">
+                {navItems.map((item) => (
+                   <SheetClose asChild key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-lg font-medium",
+                        pathname === item.href
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {item.label}
+                    </Link>
+                  </SheetClose>
+                ))}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

@@ -53,7 +53,8 @@ export function GameClient() {
 
       if (!evaluationResult.isValid) {
         toast({
-          title: "Conseil",
+          variant: "default",
+          title: "Presque !",
           description: evaluationResult.feedback,
         });
         updateScore(-5);
@@ -108,53 +109,55 @@ export function GameClient() {
   const progressPercentage = (level / gameLevels.length) * 100;
 
   return (
-    <div className="container py-8 flex flex-col items-center">
-      <Card className="w-full max-w-3xl mb-4">
-        <CardHeader className="text-center">
-          <div className="flex justify-between items-center mb-2">
-            <div className="text-left">
-              <p className="text-sm text-muted-foreground">Niveau</p>
-              <p className="text-2xl font-bold text-primary">{level}</p>
+    <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
+      <div className="w-full max-w-3xl flex flex-col gap-4">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-left">
+                <p className="text-sm text-muted-foreground">Niveau</p>
+                <p className="text-2xl font-bold text-primary">{level}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Score</p>
+                <p className="text-2xl font-bold text-primary">{score}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Score</p>
-              <p className="text-2xl font-bold text-primary">{score}</p>
+            <CardTitle className="text-2xl font-semibold">
+              Défi : "{currentLevelData.description}"
+            </CardTitle>
+            <Progress value={progressPercentage} className="w-full mt-4" />
+          </CardHeader>
+        </Card>
+        
+        <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative">
+              <Input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value.toUpperCase())}
+                placeholder="ÉCRIVEZ VOTRE RÉPONSE ICI..."
+                className="h-14 text-center text-xl tracking-widest bg-card"
+                autoFocus
+                disabled={isSubmitting}
+              />
+              <Button type="button" size="icon" variant="ghost" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0}>
+                <Undo2 className="h-5 w-5"/>
+              </Button>
             </div>
-          </div>
-          <CardTitle className="text-2xl font-semibold">
-            Défi : "{currentLevelData.description}"
-          </CardTitle>
-          <Progress value={progressPercentage} className="w-full mt-4" />
-        </CardHeader>
-      </Card>
-      
-      <div className="w-full max-w-3xl space-y-4">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative">
-            <Input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value.toUpperCase())}
-              placeholder="ÉCRIVEZ VOTRE RÉPONSE ICI..."
-              className="h-14 text-center text-xl tracking-widest bg-card"
-              autoFocus
-              disabled={isSubmitting}
-            />
-            <Button type="button" size="icon" variant="ghost" className="absolute right-2 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0}>
-              <Undo2 className="h-5 w-5"/>
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !inputValue.trim()}>
+              {isSubmitting ? (
+                <LoaderCircle className="animate-spin mr-2" />
+              ) : (
+                <ArrowRight className="mr-2" />
+              )}
+              Valider
             </Button>
-          </div>
-          <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !inputValue.trim()}>
-            {isSubmitting ? (
-              <LoaderCircle className="animate-spin mr-2" />
-            ) : (
-              <ArrowRight className="mr-2" />
-            )}
-            Valider
-          </Button>
-        </form>
+          </form>
 
-        <VirtualKeyboard onKeyPress={handleKeyPress} disabled={isSubmitting} />
+          <VirtualKeyboard onKeyPress={handleKeyPress} disabled={isSubmitting} />
+        </div>
       </div>
 
       <LevelCompleteDialog
