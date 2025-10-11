@@ -32,6 +32,7 @@ export function GameClient() {
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [lastRoundPoints, setLastRoundPoints] = useState({ points: 0, bonus: 0 });
   const [solutionWord, setSolutionWord] = useState('');
+  const [hint, setHint] = useState('');
   const [jumbledLetters, setJumbledLetters] = useState<string[]>([]);
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
@@ -73,7 +74,7 @@ export function GameClient() {
       updateScore(-10);
       nextLevel();
     }
-  }, [isTimeUp, toast, updateScore, nextLevel]);
+  }, [isTimeUp, nextLevel, toast, updateScore]);
 
 
   const generateJumbledLetters = useCallback(async () => {
@@ -87,6 +88,7 @@ export function GameClient() {
       });
       const word = result.solutionWord.toUpperCase();
       setSolutionWord(word);
+      setHint(result.hint);
 
       const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
       const solutionLetters = word.split('');
@@ -116,6 +118,7 @@ export function GameClient() {
     return () => {
       if (timerId) clearInterval(timerId);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level]);
 
   const handleKeyPress = (key: string, index: number) => {
@@ -149,10 +152,10 @@ export function GameClient() {
   };
 
   const showHint = () => {
-    if (solutionWord) {
+    if (hint) {
       toast({
         title: "Indice",
-        description: `Le mot commence par la lettre : ${solutionWord[0]}`,
+        description: hint,
       });
       updateScore(-2); // Penalize for using hint
     }

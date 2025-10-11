@@ -33,7 +33,8 @@ const EvaluateAnswerOutputSchema = z.object({
     .describe(
       'A friendly and personalized feedback message for the user about their answer.'
     ),
-  solutionWord: z.string().describe("A valid word that contains the challenge letters. It must be in uppercase.")
+  solutionWord: z.string().describe("A valid word that contains the challenge letters. It must be in uppercase."),
+  hint: z.string().describe("A short hint, definition, or clue for the solutionWord to help the user guess it."),
 });
 
 export type EvaluateAnswerOutput = z.infer<typeof EvaluateAnswerOutputSchema>;
@@ -60,6 +61,7 @@ const evaluateAnswerPrompt = ai.definePrompt({
       - If the answer is invalid (doesn't contain "{{challenge}}"), the feedback should gently point it out and be encouraging. For example: "Presque ! N'oubliez pas d'inclure '{{challenge}}' dans votre réponse." or "Belle tentative, mais il manque '{{challenge}}'. Essaie encore !".
       - If the answer is valid, the feedback should be positive and confirm they met the challenge. For example: "Bien joué ! Votre réponse contient bien '{{challenge}}'".
   4. Generate a 'solutionWord'. This word must be a single, valid French word that contains the letters from the 'challenge' field. It must be in UPPERCASE. If a 'solutionWord' is provided in the input, use that one. Otherwise, generate a new one.
+  5. Generate a 'hint' for the 'solutionWord'. The hint should be a short definition, a clue, or a sentence that helps the user guess the word. For example, if the word is "TERRE", a good hint would be "Notre planète, ou la matière dans laquelle les plantes poussent."
 
   Analyze the user's submission and return the result.`,
 });
