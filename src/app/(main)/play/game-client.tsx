@@ -9,7 +9,7 @@ import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, Eye } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
@@ -66,7 +66,7 @@ export function GameClient() {
   }, [timerId, handleTimeUp]);
   
   useEffect(() => {
-    if (isTimeUp) {
+    if (isTimeUp && solutionWord) {
       toast({
         variant: "destructive",
         title: "Temps écoulé !",
@@ -76,7 +76,7 @@ export function GameClient() {
       nextLevel();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTimeUp]);
+  }, [isTimeUp, solutionWord]);
 
 
   const generateJumbledLetters = useCallback(async () => {
@@ -241,6 +241,23 @@ export function GameClient() {
 
   return (
     <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
+       <Card className={cn(
+            "mb-4 w-full max-w-3xl transition-all duration-500",
+            isTimeUp ? "bg-card" : "bg-transparent border-transparent"
+          )}>
+        <CardContent className="p-2 text-center">
+            <div className={cn(
+              "flex items-center justify-center gap-2 font-mono text-2xl md:text-3xl tracking-widest text-foreground",
+              !isTimeUp && "blur-md select-none"
+            )}>
+              {solutionWord ? solutionWord.split('').map((letter, index) => (
+                <span key={index}>{letter}</span>
+              )) : (
+                <span className="blur-md select-none">SOLUTION</span>
+              )}
+            </div>
+          </CardContent>
+      </Card>
       <div className="w-full max-w-3xl flex flex-col gap-4">
         <Card>
           <CardHeader className="text-center">
