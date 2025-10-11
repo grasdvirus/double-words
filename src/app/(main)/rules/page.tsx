@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Award, Star, TrendingUp, Gem } from "lucide-react";
+import { CheckCircle, XCircle, Award, Star, TrendingUp, Gem, Trophy } from "lucide-react";
 
 export default function RulesPage() {
   return (
