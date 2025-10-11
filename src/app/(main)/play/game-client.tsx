@@ -10,18 +10,14 @@ import { TimeUpDialog } from "@/components/time-up-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, Home } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { UserPlus, LogIn } from "lucide-react";
-import { signInWithGoogle } from "@/firebase/auth";
-import { useAuth } from "@/firebase/provider";
-
+import Link from 'next/link';
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -44,7 +40,6 @@ const generateRandomChallenge = () => {
 
 export function GameClient() {
   const { user } = useUser();
-  const auth = useAuth();
   const firestore = useFirestore();
   const { level, score, updateScore, nextLevel, history, addWordToHistory, settings } = useGame();
   const [inputValue, setInputValue] = useState("");
@@ -59,6 +54,8 @@ export function GameClient() {
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [currentChallenge, setCurrentChallenge] = useState("");
   const [currentDescription, setCurrentDescription] = useState("");
+  const [isWrong, setIsWrong] = useState(false);
+
 
   const timerRef = useRef<number | null>(null);
   const levelStartTimeRef = useRef<number | null>(null);
@@ -106,15 +103,17 @@ export function GameClient() {
     setShowLevelComplete(false);
     setShowTimeUp(false);
     
-    // Only go to next level if it's not a retry
     if (!isRetry) {
+        // This is a new level, so generate a new challenge
         nextLevel();
     }
-
+    
+    // For both new levels and retries, generate a new challenge.
     const challenge = generateRandomChallenge();
     const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
     setCurrentChallenge(challenge);
     setCurrentDescription(description);
+
 
     try {
       const result = await evaluateAnswer({
@@ -150,7 +149,7 @@ export function GameClient() {
 
 
   useEffect(() => {
-    generateLevel();
+    generateLevel(false);
     return () => {
       stopTimer();
     };
@@ -219,16 +218,14 @@ export function GameClient() {
     const cleanedInput = inputValue.trim();
 
     if (cleanedInput.toUpperCase() !== solutionWord) {
-      toast({
-        variant: "destructive",
-        title: "Incorrect !",
-        description: "Ce n'est pas le bon mot. Essayez encore !",
-      });
       updateScore(-5);
-      // Reset for next try on the same level
-      setInputValue("");
-      setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
-      setIsSubmitting(false);
+      setIsWrong(true);
+      setTimeout(() => {
+        setIsWrong(false);
+        setInputValue("");
+        setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
+        setIsSubmitting(false);
+      }, 500); // Duration of the shake animation
       return;
     }
     
@@ -258,12 +255,10 @@ export function GameClient() {
   };
   
   const handleNextLevel = () => {
-    setShowLevelComplete(false);
     generateLevel(false); // Generate a new level and advance
   };
 
   const handleRetry = () => {
-    setShowTimeUp(false);
     generateLevel(true); // Regenerate a challenge for the same level
   };
   
@@ -288,24 +283,17 @@ export function GameClient() {
             </div>
         );
     }
-    return boxes;
+    return (
+      <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
+        {isWrong && <span className="text-3xl absolute -left-10">❌</span>}
+        {boxes}
+      </div>
+    );
   };
+
 
   return (
     <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
-       {!user && (
-           <Alert className="mb-8 text-left max-w-md w-full">
-            <UserPlus className="h-4 w-4" />
-            <AlertTitle>Connectez-vous pour être classé !</AlertTitle>
-            <AlertDescription className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span>Votre score n'apparaîtra pas dans le classement si vous jouez en tant qu'anonyme.</span>
-              <Button size="sm" onClick={() => auth && signInWithGoogle(auth)} className="flex-shrink-0">
-                <LogIn className="mr-2 h-4 w-4" />
-                Connexion
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
       <div className="w-full max-w-3xl flex flex-col gap-4">
         
         <Card>
@@ -341,13 +329,11 @@ export function GameClient() {
         <div className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
-                <div className="flex justify-center items-center gap-2 flex-wrap">
-                    {isSubmitting && !solutionWord ? (
-                      <div className="h-12 flex items-center justify-center">
-                        <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
-                      </div>
-                    ) : renderInputBoxes()}
-                </div>
+                {isSubmitting && !solutionWord ? (
+                  <div className="h-12 flex items-center justify-center">
+                    <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
+                  </div>
+                ) : renderInputBoxes()}
                 <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || showTimeUp || showLevelComplete}>
                     <Undo2 className="h-5 w-5"/>
                 </Button>
@@ -388,5 +374,3 @@ export function GameClient() {
     </div>
   );
 }
-
-    
