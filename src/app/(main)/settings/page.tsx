@@ -51,7 +51,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Progression</CardTitle>
-            <CardDescription>Attention, cette action est irréversible.</CardDescription>
+            <CardDescription>Attention, cette action est irréversible et réinitialise votre progression locale.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="destructive" onClick={resetProgress}>

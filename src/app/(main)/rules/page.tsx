@@ -13,7 +13,7 @@ export default function RulesPage() {
           </CardHeader>
           <CardContent>
             <p className="text-lg">
-              À chaque niveau, vous devez créer un mot ou une phrase qui respecte une contrainte spécifique, généralement l'inclusion d'une double lettre (comme "ee", "rr", etc.).
+              À chaque niveau, vous devez trouver le mot secret à partir des lettres mélangées. Le mot doit également respecter la contrainte du défi (par exemple, contenir "CH").
             </p>
           </CardContent>
         </Card>
@@ -23,10 +23,11 @@ export default function RulesPage() {
             <CardTitle>Comment Jouer ?</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p>1. Lisez la consigne du niveau affichée en haut de l'écran.</p>
-            <p>2. Tapez votre mot ou phrase dans le champ de texte.</p>
-            <p>3. Utilisez le clavier virtuel à l'écran ou votre propre clavier.</p>
-            <p>4. Cliquez sur "Valider" pour soumettre votre réponse.</p>
+            <p>1. Lisez la consigne du niveau ("Défi") affichée en haut de l'écran.</p>
+            <p>2. Utilisez les lettres disponibles dans la grille pour former votre mot dans les cases.</p>
+            <p>3. Si vous vous trompez, utilisez le bouton retour pour effacer la dernière lettre.</p>
+            <p>4. Une fois le mot complet, cliquez sur "Valider" pour soumettre votre réponse.</p>
+            <p>5. Attention, vous avez 60 secondes pour trouver le mot !</p>
           </CardContent>
         </Card>
         
@@ -39,28 +40,28 @@ export default function RulesPage() {
               <CheckCircle className="text-accent h-6 w-6" />
               <div>
                 <h3 className="font-semibold">Bonne réponse : +10 points</h3>
-                <p className="text-sm text-muted-foreground">Votre réponse respecte la consigne.</p>
+                <p className="text-sm text-muted-foreground">Vous avez trouvé le mot secret.</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <Star className="text-primary h-6 w-6" />
               <div>
                 <h3 className="font-semibold">Bonus d'Originalité : +5 points</h3>
-                <p className="text-sm text-muted-foreground">Le mot ou la phrase n'a jamais été utilisé auparavant.</p>
+                <p className="text-sm text-muted-foreground">Ce bonus est accordé si l'IA juge votre réponse originale (non utilisé dans la version actuelle).</p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+             <div className="flex items-center gap-4">
               <TrendingUp className="text-blue-500 h-6 w-6" />
                <div>
-                <h3 className="font-semibold">Phrase longue (> 10 mots) : +5 points (Bonus Créativité)</h3>
-                <p className="text-sm text-muted-foreground">Votre créativité est récompensée.</p>
+                <h3 className="font-semibold">Bonus Temps : jusqu'à +6 points</h3>
+                <p className="text-sm text-muted-foreground">Plus vous êtes rapide, plus vous gagnez de points.</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <XCircle className="text-destructive h-6 w-6" />
                <div>
-                <h3 className="font-semibold">Erreur : -5 points</h3>
-                <p className="text-sm text-muted-foreground">Ne baissez pas les bras !</p>
+                <h3 className="font-semibold">Erreur / Temps écoulé : -5 / -10 points</h3>
+                <p className="text-sm text-muted-foreground">Une mauvaise réponse ou le temps écoulé vous pénalise.</p>
               </div>
             </div>
           </CardContent>
@@ -72,27 +73,19 @@ export default function RulesPage() {
           </CardHeader>
           <CardContent>
             <p>
-              Les défis deviennent de plus en plus complexes à mesure que vous montez de niveau. Attendez-vous à des doubles consonnes, des doubles voyelles, et même des lettres triplées ! Chaque 5 niveaux, l'ambiance visuelle et sonore change pour renouveler l'expérience.
+              Les niveaux sont illimités ! Les défis changent à chaque niveau pour garder le jeu intéressant. Votre progression est sauvegardée localement, vous pouvez donc reprendre là où vous vous êtes arrêté.
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Badges</CardTitle>
+            <CardTitle>Classement</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="flex items-center gap-4">
-              <Award className="text-yellow-500 h-6 w-6" />
-              <p><span className="font-semibold">Poète :</span> Validez 20 phrases.</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <Award className="text-slate-400 h-6 w-6" />
-              <p><span className="font-semibold">Grammairien fou :</span> Trouvez 100 mots.</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <Gem className="text-primary h-6 w-6" />
-              <p><span className="font-semibold">Lettre d’or :</span> Réalisez 10 combos parfaits consécutifs.</p>
+              <Trophy className="text-yellow-500 h-6 w-6" />
+              <p>Connectez-vous avec votre compte Google pour que votre score soit enregistré et apparaisse dans le classement des meilleurs joueurs !</p>
             </div>
           </CardContent>
         </Card>
