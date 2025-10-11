@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Leaderboard Collection
+    match /leaderboard/{userId} {
+      // Anyone can read the leaderboard
+      allow read: if true;
+      
+      // Only the authenticated owner of the document can create or update their score.
+      // A user can only write a score if the new score is higher than the existing one.
+      allow write: if isOwner(userId) && 
+                      (!exists(resource.data.score) || request.resource.data.score > resource.data.score);
+    }
+  }
+}

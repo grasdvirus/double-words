@@ -2,8 +2,6 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
-const MAX_LEVEL = 20;
-
 export interface GameSettings {
   language: 'FR' | 'EN';
   soundVolume: number;
@@ -46,10 +44,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     try {
       const savedState = localStorage.getItem('doubleWordsGame');
       if (savedState) {
-        setGameState(JSON.parse(savedState));
+        const parsedState = JSON.parse(savedState);
+        // Ensure score is a number, handle potential corruption
+        if (typeof parsedState.score !== 'number' || isNaN(parsedState.score)) {
+          parsedState.score = 0;
+        }
+        setGameState(parsedState);
       }
     } catch (error) {
       console.error("Failed to load game state from localStorage", error);
+      setGameState(defaultState);
     } finally {
       setIsLoaded(true);
     }
@@ -68,14 +72,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const nextLevel = useCallback(() => {
     setGameState(prev => ({
       ...prev,
-      level: prev.level < MAX_LEVEL ? prev.level + 1 : MAX_LEVEL,
+      level: prev.level + 1,
     }));
   }, []);
 
   const updateScore = useCallback((points: number) => {
     setGameState(prev => ({
       ...prev,
-      score: Math.max(0, prev.score + points),
+      score: Math.max(0, (prev.score || 0) + points),
     }));
   }, []);
 
@@ -87,7 +91,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetProgress = useCallback(() => {
-    if(window.confirm("Êtes-vous sûr de vouloir réinitialiser votre progression ?")) {
+    if(window.confirm("Êtes-vous sûr de vouloir réinitialiser votre progression ? Cela réinitialisera votre score local, mais pas votre meilleur score au classement.")) {
       setGameState(defaultState);
     }
   }, []);

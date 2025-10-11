@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGame } from "@/hooks/use-game";
 import { LevelCompleteDialog } from "@/components/level-complete-dialog";
+import { TimeUpDialog } from "@/components/time-up-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
@@ -12,9 +13,10 @@ import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react"
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/firebase";
+import { saveScore } from "@/firebase/firestore-data";
 
 const LEVEL_TIME = 60; // 60 seconds per level
-const MAX_LEVELS = 20; // Define a maximum number of levels
 
 // Helper to shuffle an array
 const shuffle = (array: string[]) => {
@@ -34,10 +36,12 @@ const generateRandomChallenge = () => {
 }
 
 export function GameClient() {
+  const { user } = useUser();
   const { level, score, updateScore, nextLevel, history, addWordToHistory } = useGame();
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
+  const [showTimeUp, setShowTimeUp] = useState(false);
   const [lastRoundPoints, setLastRoundPoints] = useState({ points: 0, bonus: 0 });
   const [solutionWord, setSolutionWord] = useState('');
   const [hint, setHint] = useState('');
@@ -45,19 +49,19 @@ export function GameClient() {
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
-  const [isTimeUp, setIsTimeUp] = useState(false);
   const [currentChallenge, setCurrentChallenge] = useState("");
   const [currentDescription, setCurrentDescription] = useState("");
 
   const { toast } = useToast();
 
   const handleTimeUp = useCallback(() => {
-    setIsTimeUp(true);
-  }, []);
+    setShowTimeUp(true);
+    updateScore(-10); // Penalize for time up
+  }, [updateScore]);
 
   const startTimer = useCallback(() => {
     if (timerId) clearInterval(timerId);
-    setIsTimeUp(false);
+    setShowTimeUp(false);
     setTimeRemaining(LEVEL_TIME);
     const newTimerId = setInterval(() => {
       setTimeRemaining(prev => {
@@ -71,19 +75,6 @@ export function GameClient() {
     }, 1000);
     setTimerId(newTimerId);
   }, [timerId, handleTimeUp]);
-  
-  useEffect(() => {
-    if (isTimeUp) {
-      updateScore(-10);
-      // Automatically move to the next level after a delay to show the solution
-      const timeout = setTimeout(() => {
-        nextLevel();
-      }, 3000); // 3-second delay
-      return () => clearTimeout(timeout);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTimeUp]);
-
 
   const generateLevel = useCallback(async () => {
     setIsSubmitting(true);
@@ -134,8 +125,14 @@ export function GameClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level]);
 
+  useEffect(() => {
+    if (user && score > 0) {
+      saveScore(user, score);
+    }
+  }, [score, user]);
+
   const handleKeyPress = (key: string, index: number) => {
-    if (inputValue.length >= solutionWord.length) return;
+    if (inputValue.length >= solutionWord.length || showTimeUp) return;
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -145,7 +142,7 @@ export function GameClient() {
   };
   
   const handleBackspace = () => {
-     if (inputValue.length === 0) return;
+     if (inputValue.length === 0 || showTimeUp) return;
     
     const lastChar = inputValue[inputValue.length - 1];
     setInputValue((prev) => prev.slice(0, -1));
@@ -166,7 +163,7 @@ export function GameClient() {
   };
 
   const showHint = () => {
-    if (hint) {
+    if (hint && !showTimeUp) {
       toast({
         title: "Indice",
         description: hint,
@@ -177,7 +174,7 @@ export function GameClient() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isSubmitting) return;
+    if (!inputValue.trim() || isSubmitting || showTimeUp) return;
 
     setIsSubmitting(true);
     if (timerId) clearInterval(timerId);
@@ -223,10 +220,11 @@ export function GameClient() {
   
   const handleContinue = () => {
     setShowLevelComplete(false);
+    setShowTimeUp(false);
     nextLevel();
   };
   
-  const progressPercentage = (level / MAX_LEVELS) * 100;
+  const progressPercentage = (level % 10) * 10;
   
   const renderInputBoxes = () => {
     const boxes = [];
@@ -259,7 +257,7 @@ export function GameClient() {
         <CardContent className="p-2 text-center">
             <div className={cn(
               "flex items-center justify-center gap-2 font-mono text-2xl md:text-3xl tracking-widest text-foreground",
-              !isTimeUp && "blur-md select-none"
+              !showTimeUp && "blur-md select-none"
             )}>
               {solutionWord ? solutionWord.split('').map((letter, index) => (
                 <span key={index}>{letter}</span>
@@ -294,7 +292,7 @@ export function GameClient() {
         </Card>
         
         <div className="flex justify-center mb-2">
-            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || isTimeUp}>
+            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || showTimeUp}>
                 <Lightbulb className="mr-2 h-4 w-4" />
                 Indice (-2 points)
             </Button>
@@ -310,7 +308,7 @@ export function GameClient() {
                       </div>
                     )}
                 </div>
-                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || isTimeUp}>
+                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || showTimeUp}>
                     <Undo2 className="h-5 w-5"/>
                 </Button>
             </div>
@@ -320,10 +318,10 @@ export function GameClient() {
                     <LoaderCircle className="animate-spin h-10 w-10 text-primary" />
                 </div>
             ) : (
-                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || isTimeUp} />
+                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp} />
             )}
 
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || isTimeUp}>
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp}>
               {isSubmitting ? (
                 <LoaderCircle className="animate-spin mr-2" />
               ) : (
@@ -341,6 +339,11 @@ export function GameClient() {
         level={level}
         points={lastRoundPoints.points}
         bonusPoints={lastRoundPoints.bonus}
+      />
+      <TimeUpDialog 
+        isOpen={showTimeUp}
+        onContinue={handleContinue}
+        solution={solutionWord}
       />
     </div>
   );

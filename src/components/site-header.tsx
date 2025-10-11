@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Swords, Trophy, BookOpen, Settings, Home, Menu } from "lucide-react";
+import { Swords, Trophy, BookOpen, Settings, Home, Menu, User, LogIn, LogOut } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -14,6 +14,9 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { useUser, useAuth } from "@/firebase";
+import { signInWithGoogle, signOut } from "@/firebase/auth";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const navItems = [
   { href: "/play", label: "Jouer", icon: Swords },
@@ -21,6 +24,52 @@ const navItems = [
   { href: "/leaderboard", label: "Classement", icon: Trophy },
   { href: "/settings", label: "Paramètres", icon: Settings },
 ];
+
+function AuthButton() {
+  const { user, loading } = useUser();
+  const auth = useAuth();
+
+  if (loading) return <Button variant="ghost" size="icon" disabled><Loader2 className="animate-spin" /></Button>;
+
+  if (user) {
+    return (
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User Avatar'}/>
+              <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </SheetTrigger>
+        <SheetContent>
+            <SheetHeader>
+                <SheetTitle>Profil</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col items-center justify-center gap-4 py-8">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User Avatar'}/>
+                  <AvatarFallback className="text-4xl">{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <p className="text-xl font-semibold">{user.displayName}</p>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+                <Button onClick={() => signOut(auth)} variant="destructive" className="mt-4">
+                  <LogOut className="mr-2"/>
+                  Déconnexion
+                </Button>
+            </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Button onClick={() => signInWithGoogle(auth)}>
+      <LogIn className="mr-2" />
+      Connexion
+    </Button>
+  );
+}
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -38,7 +87,7 @@ export function SiteHeader() {
         </div>
         
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex flex-1 items-center justify-end space-x-1">
+        <nav className="hidden md:flex flex-1 items-center space-x-1">
           {navItems.map((item) => (
             <Button
               key={item.href}
@@ -53,43 +102,47 @@ export function SiteHeader() {
             </Button>
           ))}
         </nav>
+
+        <div className="flex flex-1 items-center justify-end gap-2">
+            <AuthButton />
         
-        {/* Mobile Navigation */}
-        <div className="flex flex-1 items-center justify-end md:hidden">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Ouvrir le menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right">
-              <SheetHeader className="text-left">
-                <SheetTitle>Menu</SheetTitle>
-                <SheetDescription>
-                  Naviguez à travers les différentes sections du jeu.
-                </SheetDescription>
-              </SheetHeader>
-              <nav className="flex flex-col gap-4 mt-8">
-                {navItems.map((item) => (
-                   <SheetClose asChild key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-lg font-medium",
-                        pathname === item.href
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <item.icon className="h-5 w-5" />
-                      {item.label}
-                    </Link>
-                  </SheetClose>
-                ))}
-              </nav>
-            </SheetContent>
-          </Sheet>
+            {/* Mobile Navigation */}
+            <div className="flex items-center md:hidden">
+            <Sheet>
+                <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                    <span className="sr-only">Ouvrir le menu</span>
+                </Button>
+                </SheetTrigger>
+                <SheetContent side="right">
+                <SheetHeader className="text-left">
+                    <SheetTitle>Menu</SheetTitle>
+                    <SheetDescription>
+                    Naviguez à travers les différentes sections du jeu.
+                    </SheetDescription>
+                </SheetHeader>
+                <nav className="flex flex-col gap-4 mt-8">
+                    {navItems.map((item) => (
+                    <SheetClose asChild key={item.href}>
+                        <Link
+                        href={item.href}
+                        className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-lg font-medium",
+                            pathname === item.href
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        >
+                        <item.icon className="h-5 w-5" />
+                        {item.label}
+                        </Link>
+                    </SheetClose>
+                    ))}
+                </nav>
+                </SheetContent>
+            </Sheet>
+            </div>
         </div>
       </div>
     </header>

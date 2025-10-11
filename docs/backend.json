@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "userProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile in the application.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture."
+        },
+        "score": {
+          "type": "number",
+          "description": "The user's highest score."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of the last score update."
+        }
+      },
+      "required": ["displayName", "score", "updatedAt"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/leaderboard/{userId}": {
+      "schema": {
+        "$ref": "#/entities/userProfile"
+      },
+      "description": "Stores user profiles for the leaderboard. The document ID is the user's UID."
+    }
+  }
+}
