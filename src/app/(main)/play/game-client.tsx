@@ -10,14 +10,15 @@ import { TimeUpDialog } from "@/components/time-up-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, Home } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import Link from 'next/link';
+import { gameLevels } from "@/lib/game-levels";
+
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -85,7 +86,7 @@ export function GameClient() {
       const now = Date.now();
       const elapsed = (now - (levelStartTimeRef.current || now)) / 1000;
       const newTimeRemaining = Math.max(0, LEVEL_TIME - elapsed);
-      setTimeRemaining(Math.ceil(newTimeRemaining));
+      setTimeRemaining(newTimeRemaining);
 
       if (newTimeRemaining > 0) {
         timerRef.current = requestAnimationFrame(animate);
@@ -104,14 +105,25 @@ export function GameClient() {
     setShowTimeUp(false);
     
     if (!isRetry) {
-        nextLevel();
+        // nextLevel() is called only when moving to a truly new level, not on retry
     }
     
-    const challenge = generateRandomChallenge();
-    const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
+    // Check if we are within predefined levels
+    const predefinedLevel = gameLevels.find(l => l.level === level);
+    let challenge, description, solution;
+
+    if (predefinedLevel) {
+        challenge = predefinedLevel.challenge;
+        description = predefinedLevel.description;
+        solution = predefinedLevel.solutionWord;
+    } else {
+        challenge = generateRandomChallenge();
+        description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
+        solution = undefined; // No predefined solution for random levels
+    }
+    
     setCurrentChallenge(challenge);
     setCurrentDescription(description);
-
 
     try {
       const result = await evaluateAnswer({
@@ -119,6 +131,7 @@ export function GameClient() {
         challenge: challenge,
         description: description,
         language: settings.language,
+        solutionWord: solution, // Pass predefined solution if it exists
       });
       const word = result.solutionWord.toUpperCase();
       setSolutionWord(word);
@@ -143,16 +156,16 @@ export function GameClient() {
         setIsSubmitting(false);
         startTimer();
     }
-  }, [settings.language, toast, nextLevel, startTimer]);
+  }, [settings.language, toast, startTimer, level]);
 
 
   useEffect(() => {
-    generateLevel(false);
+    generateLevel(false); // Initial level generation
     return () => {
       stopTimer();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.language]); // Only on first load or language change
+  }, [level, settings.language]); // Regenerate when level or language changes
 
 
   useEffect(() => {
@@ -255,14 +268,15 @@ export function GameClient() {
   };
   
   const handleNextLevel = () => {
-    generateLevel(false); // Generate a new level and advance
+    nextLevel();
+    // The useEffect watching `level` will trigger generateLevel
   };
 
   const handleRetry = () => {
     generateLevel(true); // Regenerate a challenge for the same level number
   };
   
-  const progressPercentage = (level % 10) * 10;
+  const progressPercentage = Math.min(100, (level / 10) * 100);
   
   const renderInputBoxes = () => {
     const boxes = [];
@@ -307,7 +321,7 @@ export function GameClient() {
               </div>
                <div className="flex flex-col items-center">
                  <Clock className="h-6 w-6 text-primary" />
-                 <p className="text-2xl font-bold text-primary">{timeRemaining}</p>
+                 <p className="text-2xl font-bold text-primary">{Math.ceil(timeRemaining)}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Score</p>

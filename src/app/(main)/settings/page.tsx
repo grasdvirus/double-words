@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Progression</CardTitle>
-            <CardDescription>Attention, cette action est irréversible et réinitialise votre progression locale.</CardDescription>
+            <CardDescription>Attention, cette action est irréversible. Elle réinitialisera votre niveau et votre score localement.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="destructive" onClick={resetProgress}>
