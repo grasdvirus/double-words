@@ -10,16 +10,13 @@ import { TimeUpDialog } from "@/components/time-up-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, UserPlus, LogIn, Home } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
-import { useUser, useFirestore, useAuth } from "@/firebase";
+import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import Link from "next/link";
-import { signInWithGoogle } from "@/firebase/auth";
 
 
 const LEVEL_TIME = 60; // 60 seconds per level
@@ -44,7 +41,6 @@ const generateRandomChallenge = () => {
 export function GameClient() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const auth = useAuth();
   const { level, score, updateScore, nextLevel, history, addWordToHistory, settings } = useGame();
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,15 +67,21 @@ export function GameClient() {
     }
   }, []);
 
+  const handleTimeUp = useCallback(() => {
+    if (!showLevelComplete && !showTimeUp) {
+      updateScore(-10); // Penalize for time up
+      setShowTimeUp(true);
+    }
+  }, [showLevelComplete, showTimeUp, updateScore]);
+
   const startTimer = useCallback(() => {
     stopTimer();
     levelStartTimeRef.current = Date.now();
     setTimeRemaining(LEVEL_TIME);
 
-    const animate = (timestamp: number) => {
-      if (!levelStartTimeRef.current) levelStartTimeRef.current = timestamp;
-      
-      const elapsed = (timestamp - levelStartTimeRef.current) / 1000;
+    const animate = () => {
+      const now = Date.now();
+      const elapsed = (now - (levelStartTimeRef.current || now)) / 1000;
       const newTimeRemaining = Math.max(0, LEVEL_TIME - elapsed);
       setTimeRemaining(Math.ceil(newTimeRemaining));
 
@@ -87,20 +89,11 @@ export function GameClient() {
         timerRef.current = requestAnimationFrame(animate);
       } else {
         stopTimer();
-        // Check states directly to prevent updates during render
-        setInputValue(val => {
-            setShowTimeUp(show => {
-                if (!show) { // Only trigger if not already shown
-                    updateScore(-10); // Penalize for time up
-                }
-                return true;
-            });
-            return val;
-        });
+        handleTimeUp();
       }
     };
     timerRef.current = requestAnimationFrame(animate);
-  }, [stopTimer, updateScore]);
+  }, [stopTimer, handleTimeUp]);
   
   const generateLevel = useCallback(async (isRetry = false) => {
     setIsSubmitting(true);
@@ -314,19 +307,7 @@ export function GameClient() {
           </CardContent>
       </Card>
       <div className="w-full max-w-3xl flex flex-col gap-4">
-        {!user && !showLevelComplete && !showTimeUp && (
-          <Alert>
-            <UserPlus className="h-4 w-4" />
-            <AlertTitle>Vous jouez en tant qu'anonyme</AlertTitle>
-            <AlertDescription className="flex items-center justify-between">
-              Votre score n'apparaîtra pas dans le classement.
-              <Button size="sm" onClick={() => auth && signInWithGoogle(auth)}>
-                <LogIn className="mr-2 h-4 w-4" />
-                Connexion
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+        
         <Card>
           <CardHeader className="text-center">
             <div className="flex justify-between items-center mb-2">
