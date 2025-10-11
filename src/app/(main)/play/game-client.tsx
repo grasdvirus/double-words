@@ -288,16 +288,17 @@ export function GameClient() {
   const progressPercentage = Math.min(100, (level / 10) * 100);
   
   const renderInputBoxes = () => {
+    // Return a placeholder with a fixed size to prevent layout shifts
     if (!solutionWord) {
-        return (
-            <div className="h-12 flex items-center justify-center">
-                <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
-            </div>
-        );
+      return (
+        <div className="flex justify-center items-center gap-2 flex-wrap h-14">
+          <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      );
     }
 
     return (
-      <div className="relative">
+      <div className="relative h-14">
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
           {Array.from({ length: solutionWord.length }).map((_, i) => {
             const char = inputValue[i] || '';
@@ -373,11 +374,8 @@ export function GameClient() {
             )}
 
             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp || showLevelComplete}>
-              {isSubmitting && !showLevelComplete ? (
-                <LoaderCircle className="animate-spin mr-2" />
-              ) : (
-                <ArrowRight className="mr-2" />
-              )}
+              {isSubmitting && <LoaderCircle className="animate-spin mr-2" />}
+              <ArrowRight className="mr-2" />
               Valider
             </Button>
           </form>
@@ -399,3 +397,5 @@ export function GameClient() {
     </div>
   );
 }
+
+    
