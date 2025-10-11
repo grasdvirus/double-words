@@ -39,7 +39,7 @@ const generateRandomChallenge = () => {
 export function GameClient() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { level, score, updateScore, nextLevel, history, addWordToHistory } = useGame();
+  const { level, score, updateScore, nextLevel, history, addWordToHistory, settings } = useGame();
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
@@ -55,13 +55,6 @@ export function GameClient() {
   const [currentDescription, setCurrentDescription] = useState("");
 
   const { toast } = useToast();
-  
-  useEffect(() => {
-    if (showTimeUp) {
-      updateScore(-10); // Penalize for time up
-    }
-  }, [showTimeUp, updateScore]);
-
 
   const startTimer = useCallback(() => {
     if (timerId) clearInterval(timerId);
@@ -80,12 +73,19 @@ export function GameClient() {
     setTimerId(newTimerId);
   }, [timerId]);
 
+  useEffect(() => {
+    if (showTimeUp) {
+      if(timerId) clearInterval(timerId);
+      updateScore(-10); // Penalize for time up
+    }
+  }, [showTimeUp, updateScore, timerId]);
+
   const generateLevel = useCallback(async () => {
     setIsSubmitting(true);
     setInputValue("");
 
     const challenge = generateRandomChallenge();
-    const description = `Trouve un mot contenant "${challenge}"`;
+    const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
     setCurrentChallenge(challenge);
     setCurrentDescription(description);
 
@@ -94,6 +94,7 @@ export function GameClient() {
         wordOrPhrase: '',
         challenge: challenge,
         description: description,
+        language: settings.language,
       });
       const word = result.solutionWord.toUpperCase();
       setSolutionWord(word);
@@ -118,7 +119,7 @@ export function GameClient() {
     } finally {
         setIsSubmitting(false);
     }
-  }, [startTimer, toast]);
+  }, [startTimer, toast, settings.language]);
 
   useEffect(() => {
     generateLevel();

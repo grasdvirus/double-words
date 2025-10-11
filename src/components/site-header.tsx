@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Swords, Trophy, BookOpen, Settings, Home, Menu, User, LogIn, LogOut, Loader2 } from "lucide-react";
+import { Swords, Trophy, BookOpen, Settings, Home, Menu, User, LogIn, LogOut, Loader2, Pause, Play } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -79,7 +79,7 @@ export function SiteHeader() {
       <div className="container flex h-14 max-w-screen-2xl items-center">
         <div className="mr-4 flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Home className="h-6 w-6 text-primary" />
+            <Swords className="h-6 w-6 text-primary" />
             <span className="font-bold sm:inline-block">
               Double Words
             </span>
@@ -104,6 +104,18 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-2">
+            {pathname === "/play" && (
+              <>
+                 <Button asChild variant="ghost" size="icon">
+                  <Link href="/" aria-label="Accueil">
+                    <Home />
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="icon" aria-label="Pause">
+                  <Pause />
+                </Button>
+              </>
+            )}
             <AuthButton />
         
             {/* Mobile Navigation */}

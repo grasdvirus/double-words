@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { FloatingLettersBackground } from '@/components/floating-letters-background';
-import { Play, Trophy, BookOpen, Settings } from 'lucide-react';
+import { Play, Trophy, BookOpen, Settings, Swords } from 'lucide-react';
 
 export default function Home() {
   return (

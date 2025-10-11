@@ -19,6 +19,7 @@ const EvaluateAnswerInputSchema = z.object({
   description: z
     .string()
     .describe('The description of the challenge for the level.'),
+  language: z.enum(['FR', 'EN']).default('FR').describe('The language for the generated word and hint.'),
   solutionWord: z.string().optional().describe('An optional solution word for the level.'),
 });
 
@@ -53,15 +54,16 @@ const evaluateAnswerPrompt = ai.definePrompt({
 
   The user's submission is: "{{wordOrPhrase}}"
   The challenge is: "{{description}}" (The required letters are: "{{challenge}}")
+  The requested language is: {{language}}.
 
   Your task is to:
   1.  Check if the user's submission ("{{wordOrPhrase}}") contains the required challenge string ("{{challenge}}"). The check must be case-insensitive.
   2.  Set 'isValid' to true if it does, and false if it does not.
-  3.  Write a short, friendly, and personalized 'feedback' message for the user.
-      - If the answer is invalid (doesn't contain "{{challenge}}"), the feedback should gently point it out and be encouraging. For example: "Presque ! N'oubliez pas d'inclure '{{challenge}}' dans votre réponse." or "Belle tentative, mais il manque '{{challenge}}'. Essaie encore !".
-      - If the answer is valid, the feedback should be positive and confirm they met the challenge. For example: "Bien joué ! Votre réponse contient bien '{{challenge}}'".
-  4. Generate a 'solutionWord'. This word must be a single, valid French word that contains the letters from the 'challenge' field. It must be in UPPERCASE. If a 'solutionWord' is provided in the input, use that one. Otherwise, generate a new one.
-  5. Generate a 'hint' for the 'solutionWord'. The hint should be a short definition, a clue, or a sentence that helps the user guess the word. For example, if the word is "TERRE", a good hint would be "Notre planète, ou la matière dans laquelle les plantes poussent."
+  3.  Write a short, friendly, and personalized 'feedback' message for the user in the requested language ({{language}}).
+      - If the answer is invalid (doesn't contain "{{challenge}}"), the feedback should gently point it out and be encouraging.
+      - If the answer is valid, the feedback should be positive and confirm they met the challenge.
+  4. Generate a 'solutionWord'. This word must be a single, valid word in the requested language ({{language}}) that contains the letters from the 'challenge' field. It must be in UPPERCASE. If a 'solutionWord' is provided in the input, use that one. Otherwise, generate a new one.
+  5. Generate a 'hint' for the 'solutionWord' in the requested language ({{language}}). The hint should be a short definition, a clue, or a sentence that helps the user guess the word.
 
   Analyze the user's submission and return the result.`,
 });

@@ -33,7 +33,7 @@ export default function SettingsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="FR">Français</SelectItem>
-                  <SelectItem value="EN" disabled>English</SelectItem>
+                  <SelectItem value="EN">English</SelectItem>
                 </SelectContent>
               </Select>
             </div>
