@@ -9,7 +9,10 @@ import {
   Sheet,
   SheetContent,
   SheetTrigger,
-  SheetClose
+  SheetClose,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
 } from "@/components/ui/sheet";
 
 const navItems = [
@@ -61,6 +64,12 @@ export function SiteHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right">
+              <SheetHeader className="text-left">
+                <SheetTitle>Menu</SheetTitle>
+                <SheetDescription>
+                  Naviguez à travers les différentes sections du jeu.
+                </SheetDescription>
+              </SheetHeader>
               <nav className="flex flex-col gap-4 mt-8">
                 {navItems.map((item) => (
                    <SheetClose asChild key={item.href}>
