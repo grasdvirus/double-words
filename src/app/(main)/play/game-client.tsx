@@ -152,7 +152,9 @@ export function GameClient() {
         toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
     } finally {
         setIsSubmitting(false);
-        startTimer();
+        if (!isRetry) {
+          startTimer();
+        }
     }
   }, [settings.language, toast, startTimer, level]);
 
@@ -272,11 +274,14 @@ export function GameClient() {
   
   const handleNextLevel = () => {
     nextLevel();
-    // The useEffect watching `level` will trigger generateLevel
+    setShowLevelComplete(false);
+    generateLevel(false);
   };
 
   const handleRetry = () => {
+    setShowTimeUp(false);
     generateLevel(true); // Regenerate a challenge for the same level number
+    startTimer();
   };
   
   const progressPercentage = Math.min(100, (level / 10) * 100);
