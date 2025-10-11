@@ -1,9 +1,8 @@
 "use client";
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { gameLevels } from '@/lib/game-levels';
 
-const MAX_LEVEL = gameLevels.length;
+const MAX_LEVEL = 20;
 
 export interface GameSettings {
   language: 'FR' | 'EN';

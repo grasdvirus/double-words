@@ -4,17 +4,17 @@ import { useState, useMemo, useCallback, FormEvent, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGame } from "@/hooks/use-game";
-import { gameLevels } from "@/lib/game-levels";
 import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, Eye } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
 
 const LEVEL_TIME = 60; // 60 seconds per level
+const MAX_LEVELS = 20; // Define a maximum number of levels
 
 // Helper to shuffle an array
 const shuffle = (array: string[]) => {
@@ -24,6 +24,14 @@ const shuffle = (array: string[]) => {
   }
   return array;
 };
+
+// Helper to generate a random two-letter challenge
+const generateRandomChallenge = () => {
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const char1 = alphabet[Math.floor(Math.random() * alphabet.length)];
+    const char2 = alphabet[Math.floor(Math.random() * alphabet.length)];
+    return (char1 + char2).toLowerCase();
+}
 
 export function GameClient() {
   const { level, score, updateScore, nextLevel, history, addWordToHistory } = useGame();
@@ -38,14 +46,13 @@ export function GameClient() {
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
   const [isTimeUp, setIsTimeUp] = useState(false);
+  const [currentChallenge, setCurrentChallenge] = useState("");
+  const [currentDescription, setCurrentDescription] = useState("");
 
   const { toast } = useToast();
 
-  const currentLevelData = useMemo(() => gameLevels[level - 1], [level]);
-
   const handleTimeUp = useCallback(() => {
     setIsTimeUp(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startTimer = useCallback(() => {
@@ -69,23 +76,29 @@ export function GameClient() {
     if (isTimeUp) {
       updateScore(-10);
       // Automatically move to the next level after a delay to show the solution
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         nextLevel();
       }, 3000); // 3-second delay
+      return () => clearTimeout(timeout);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTimeUp]);
 
 
-  const generateJumbledLetters = useCallback(async () => {
+  const generateLevel = useCallback(async () => {
     setIsSubmitting(true);
     setInputValue("");
+
+    const challenge = generateRandomChallenge();
+    const description = `Trouve un mot contenant "${challenge}"`;
+    setCurrentChallenge(challenge);
+    setCurrentDescription(description);
+
     try {
       const result = await evaluateAnswer({
         wordOrPhrase: '',
-        challenge: currentLevelData.challenge,
-        description: currentLevelData.description,
-        solutionWord: currentLevelData.solutionWord
+        challenge: challenge,
+        description: description,
       });
       const word = result.solutionWord.toUpperCase();
       setSolutionWord(word);
@@ -110,10 +123,10 @@ export function GameClient() {
     } finally {
         setIsSubmitting(false);
     }
-  }, [currentLevelData, startTimer, toast]);
+  }, [startTimer, toast]);
 
   useEffect(() => {
-    generateJumbledLetters();
+    generateLevel();
 
     return () => {
       if (timerId) clearInterval(timerId);
@@ -179,7 +192,7 @@ export function GameClient() {
       updateScore(-5);
       setIsSubmitting(false);
       // Reset for next try
-      generateJumbledLetters();
+      generateLevel();
       setInputValue("");
       return;
     }
@@ -213,7 +226,7 @@ export function GameClient() {
     nextLevel();
   };
   
-  const progressPercentage = (level / gameLevels.length) * 100;
+  const progressPercentage = (level / MAX_LEVELS) * 100;
   
   const renderInputBoxes = () => {
     const boxes = [];
@@ -274,7 +287,7 @@ export function GameClient() {
               </div>
             </div>
             <CardTitle className="text-2xl font-semibold">
-              Défi : "{currentLevelData.description}"
+              Défi : "{currentDescription}"
             </CardTitle>
             <Progress value={progressPercentage} className="w-full mt-4" />
           </CardHeader>
