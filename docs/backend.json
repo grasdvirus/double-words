@@ -1,44 +1,238 @@
 {
   "entities": {
-    "userProfile": {
-      "title": "User Profile",
-      "description": "Represents a user's profile in the application.",
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
       "type": "object",
+      "description": "Represents a user of the Double Words game.",
       "properties": {
-        "displayName": {
+        "id": {
           "type": "string",
-          "description": "The user's display name."
+          "description": "Unique identifier for the user."
+        },
+        "username": {
+          "type": "string",
+          "description": "The user's display name or username."
         },
         "email": {
           "type": "string",
-          "description": "The user's email address."
+          "description": "The user's email address.",
+          "format": "email"
         },
-        "photoURL": {
+        "currentLevelId": {
           "type": "string",
-          "description": "URL of the user's profile picture."
+          "description": "Reference to the Level the user is currently on. (Relationship: User 1:1 Level)"
+        },
+        "totalScore": {
+          "type": "number",
+          "description": "The user's total score in the game."
+        },
+        "lastPlayed": {
+          "type": "string",
+          "description": "Timestamp of the user's last game session.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "username"
+      ]
+    },
+    "Level": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Level",
+      "type": "object",
+      "description": "Represents a level in the Double Words game.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the level."
+        },
+        "levelNumber": {
+          "type": "number",
+          "description": "The numerical identifier of the level (e.g., 1, 2, 3)."
+        },
+        "challenge": {
+          "type": "string",
+          "description": "The linguistic challenge for the level (e.g., 'Create a word containing ee')."
+        },
+        "requiredLetters": {
+          "type": "string",
+          "description": "The specific letters required for the level (e.g., 'ee', 'rr')."
+        },
+        "levelType": {
+          "type": "string",
+          "description": "Category of level."
+        }
+      },
+      "required": [
+        "id",
+        "levelNumber",
+        "challenge",
+        "requiredLetters"
+      ]
+    },
+    "GameSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GameSession",
+      "type": "object",
+      "description": "Represents a single game session for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the game session."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who played this session. (Relationship: User 1:N GameSession)"
+        },
+        "levelId": {
+          "type": "string",
+          "description": "Reference to the Level played in this session. (Relationship: Level 1:N GameSession)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Timestamp of when the session started.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "Timestamp of when the session ended.",
+          "format": "date-time"
         },
         "score": {
           "type": "number",
-          "description": "The user's highest score."
+          "description": "The score achieved in this session."
         },
-        "updatedAt": {
+        "userAnswer": {
           "type": "string",
-          "format": "date-time",
-          "description": "The timestamp of the last score update."
+          "description": "The user's answer for the level."
+        },
+        "isCorrect": {
+          "type": "boolean",
+          "description": "Indicates whether the user's answer was correct."
         }
       },
-      "required": ["displayName", "score", "updatedAt"]
+      "required": [
+        "id",
+        "userId",
+        "levelId",
+        "startTime"
+      ]
+    },
+    "LeaderboardEntry": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LeaderboardEntry",
+      "type": "object",
+      "description": "Represents an entry in the game's leaderboard.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the leaderboard entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User associated with this entry. (Relationship: User 1:N LeaderboardEntry)"
+        },
+        "score": {
+          "type": "number",
+          "description": "The score for this leaderboard entry."
+        },
+        "rank": {
+          "type": "number",
+          "description": "The user's rank on the leaderboard."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp of when the entry was created or updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "score",
+        "rank"
+      ]
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/leaderboard/{userId}": {
-      "schema": {
-        "$ref": "#/entities/userProfile"
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information.  Accessible only to the user and admins (if implemented).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
       },
-      "description": "Stores user profiles for the leaderboard. The document ID is the user's UID."
-    }
+      {
+        "path": "/levels/{levelId}",
+        "definition": {
+          "entityName": "Level",
+          "schema": {
+            "$ref": "#/backend/entities/Level"
+          },
+          "description": "Stores level definitions. Publicly readable.",
+          "params": [
+            {
+              "name": "levelId",
+              "description": "The unique identifier of the level."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/game_sessions/{gameSessionId}",
+        "definition": {
+          "entityName": "GameSession",
+          "schema": {
+            "$ref": "#/backend/entities/GameSession"
+          },
+          "description": "Stores game session data for each user. Accessible only to the user and admins (if implemented).",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "gameSessionId",
+              "description": "The unique identifier of the game session."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/leaderboard_entries/{leaderboardEntryId}",
+        "definition": {
+          "entityName": "LeaderboardEntry",
+          "schema": {
+            "$ref": "#/backend/entities/LeaderboardEntry"
+          },
+          "description": "Stores leaderboard entries. Publicly readable, but writeable only by the system.",
+          "params": [
+            {
+              "name": "leaderboardEntryId",
+              "description": "The unique identifier of the leaderboard entry."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the Double Words game, emphasizing security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), and QAPs (Rules are not Filters).\n\n**Authorization Independence:**\nAuthorization Independence is achieved through denormalization. Specifically, if collaborative features were added in the future (e.g., sharing levels), access control information (e.g., a 'members' map) would be denormalized into relevant subcollections to avoid `get()` calls in security rules. As it stands with the current game design, path-based ownership is sufficient.\n\n**Structural Segregation (Homogeneous Security Posture):**\nThe structure uses structural segregation to maintain a homogeneous security posture. User-specific data (game sessions) are stored under `/users/{userId}`, ensuring that security rules can be applied consistently across all documents within that collection.\n\n**Access Modeling:**\nAccess modeling follows consistent patterns:\n*   **Private Data:** User profiles and game sessions are stored under `/users/{userId}`, enforcing path-based ownership. Only the user (or admin, if implemented) can access this data.\n\n**QAPs (Rules are not Filters):**\nThe structure is designed to support secure list operations (QAPs). By segregating data based on ownership and access control requirements, list operations can be secured without resorting to filtering data within the rules themselves. Listing levels will only require read access. Listing leaderboard entries will require read access.\n\n**Denormalization Justification:**\nWhile the current design doesn't require extensive denormalization, the structure is prepared for future collaborative features. If features like shared levels are implemented, access control lists (`members` maps) would be denormalized into the `/levels/{levelId}` document, ensuring that security rules do not rely on costly `get()` operations.\n\n**Debuggability:**\nThe structure promotes debuggability by making the authorization intent explicit through clear path-based ownership and consistent naming conventions."
   }
 }

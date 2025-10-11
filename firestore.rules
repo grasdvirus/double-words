@@ -1,22 +1,88 @@
+/**
+ * @file Firestore Security Rules for Double Words Game
+ * @core_philosophy This ruleset enforces a strict user-ownership model for user-specific data and allows public read access to game levels and leaderboard entries.
+ * @data_structure User data and game sessions are nested under /users/{userId}. Levels and leaderboard entries are stored in top-level collections.
+ * @key_security_decisions Users can only access their own data. Levels and leaderboard entries are publicly readable. Leaderboard entries are writable only by the system (not implemented in these rules). Listing of user-specific game sessions is allowed only for the owner.
+ * @denormalization_for_authorization The rules rely on path-based authorization (e.g., /users/{userId}) to avoid the need for denormalization in the base game.
+ * @structural_segregation User-specific data is stored under the /users collection, while public data (levels, leaderboard) is in top-level collections.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    /**
+     * @description Controls access to user profile information.
+     * @path /users/{userId}
+     * @allow (create) - User with matching ID can create their profile.
+     * @allow (get, update, delete) - User with matching ID can read, update, and delete their profile.
+     * @deny (create, get, update, delete) - Any other user cannot access this data.
+     * @principle Enforces document ownership for writes.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.auth.uid == userId;
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
-    // Leaderboard Collection
-    match /leaderboard/{userId} {
-      // Anyone can read the leaderboard
-      allow read: if true;
-      
-      // Only the authenticated owner of the document can create or update their score.
-      // A user can only write a score if the new score is higher than the existing one.
-      allow write: if isOwner(userId) && 
-                      (!exists(resource.data.score) || request.resource.data.score > resource.data.score);
+    /**
+     * @description Controls access to level definitions.
+     * @path /levels/{levelId}
+     * @allow (get, list) - Any user can read level data.
+     * @deny (create, update, delete) - No user can create, update, or delete levels (only the system can).
+     * @principle Public read access with system-only writes.
+     */
+    match /levels/{levelId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
+
+    /**
+     * @description Controls access to game session data for each user.
+     * @path /users/{userId}/game_sessions/{gameSessionId}
+     * @allow (create, get, update, delete) - User with matching ID can create, read, update, and delete their game sessions.
+     * @deny (create, get, update, delete) - Any other user cannot access this data.
+     * @principle Enforces document ownership for writes within a user's data tree.
+     */
+    match /users/{userId}/game_sessions/{gameSessionId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to leaderboard entries.
+     * @path /leaderboard_entries/{leaderboardEntryId}
+     * @allow (get, list) - Any user can read leaderboard entries.
+     * @deny (create, update, delete) - No user can create, update, or delete leaderboard entries (only the system can).
+     * @principle Public read access with system-only writes.
+     */
+    match /leaderboard_entries/{leaderboardEntryId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+  }
+
+  function isSignedIn() {
+    return request.auth != null;
   }
 }
