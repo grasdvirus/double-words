@@ -1,0 +1,74 @@
+'use server';
+
+/**
+ * @fileOverview Flow to evaluate a user's answer in the game.
+ *
+ * - evaluateAnswer - Function to evaluate if the answer meets the game's challenge.
+ * - EvaluateAnswerInput - Input type for the evaluateAnswer function.
+ * - EvaluateAnswerOutput - Return type for the evaluateAnswer function.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+
+const EvaluateAnswerInputSchema = z.object({
+  wordOrPhrase: z.string().describe("The user's submitted word or phrase."),
+  challenge: z
+    .string()
+    .describe('The required substring or pattern for the level (e.g., "ee").'),
+  description: z
+    .string()
+    .describe('The description of the challenge for the level.'),
+});
+
+export type EvaluateAnswerInput = z.infer<typeof EvaluateAnswerInputSchema>;
+
+const EvaluateAnswerOutputSchema = z.object({
+  isValid: z
+    .boolean()
+    .describe('Whether the answer correctly includes the challenge.'),
+  feedback: z
+    .string()
+    .describe(
+      'A friendly and personalized feedback message for the user about their answer.'
+    ),
+});
+
+export type EvaluateAnswerOutput = z.infer<typeof EvaluateAnswerOutputSchema>;
+
+export async function evaluateAnswer(
+  input: EvaluateAnswerInput
+): Promise<EvaluateAnswerOutput> {
+  return evaluateAnswerFlow(input);
+}
+
+const evaluateAnswerPrompt = ai.definePrompt({
+  name: 'evaluateAnswerPrompt',
+  input: {schema: EvaluateAnswerInputSchema},
+  output: {schema: EvaluateAnswerOutputSchema},
+  prompt: `You are a fun and encouraging game judge for a word game. The user has submitted a word or phrase to a challenge.
+
+  The user's submission is: "{{wordOrPhrase}}"
+  The challenge is: "{{description}}" (The required letters are: "{{challenge}}")
+
+  Your task is to:
+  1.  Check if the user's submission ("{{wordOrPhrase}}") contains the required challenge string ("{{challenge}}"). The check must be case-insensitive.
+  2.  Set 'isValid' to true if it does, and false if it does not.
+  3.  Write a short, friendly, and personalized 'feedback' message for the user.
+      - If the answer is invalid (doesn't contain "{{challenge}}"), the feedback should gently point it out and be encouraging. For example: "Presque ! N'oubliez pas d'inclure '{{challenge}}' dans votre réponse." or "Belle tentative, mais il manque '{{challenge}}'. Essaie encore !".
+      - If the answer is valid, the feedback should be positive and confirm they met the challenge. For example: "Bien joué ! Votre réponse contient bien '{{challenge}}'".
+
+  Analyze the user's submission and return the result.`,
+});
+
+const evaluateAnswerFlow = ai.defineFlow(
+  {
+    name: 'evaluateAnswerFlow',
+    inputSchema: EvaluateAnswerInputSchema,
+    outputSchema: EvaluateAnswerOutputSchema,
+  },
+  async input => {
+    const {output} = await evaluateAnswerPrompt(input);
+    return output!;
+  }
+);

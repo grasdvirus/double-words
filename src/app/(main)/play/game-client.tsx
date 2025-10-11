@@ -10,6 +10,7 @@ import { VirtualKeyboard } from "@/components/virtual-keyboard";
 import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
+import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
 import { ArrowRight, LoaderCircle, Undo2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -42,16 +43,32 @@ export function GameClient() {
     setIsSubmitting(true);
     const cleanedInput = inputValue.trim();
 
-    // 1. Check if challenge is met
-    if (!cleanedInput.toLowerCase().includes(currentLevelData.challenge)) {
-      toast({
-        variant: "destructive",
-        title: "Dommage !",
-        description: `Votre réponse doit contenir "${currentLevelData.challenge}".`,
+    // 1. Check if challenge is met using AI
+    try {
+      const evaluationResult = await evaluateAnswer({
+        wordOrPhrase: cleanedInput,
+        challenge: currentLevelData.challenge,
+        description: currentLevelData.description,
       });
-      updateScore(-5);
-      setIsSubmitting(false);
-      return;
+
+      if (!evaluationResult.isValid) {
+        toast({
+          title: "Conseil",
+          description: evaluationResult.feedback,
+        });
+        updateScore(-5);
+        setIsSubmitting(false);
+        return;
+      }
+    } catch (error) {
+       console.error("AI evaluation failed:", error);
+       toast({
+         variant: "destructive",
+         title: "Erreur IA",
+         description: "Impossible d'évaluer la réponse. Réessayez.",
+       });
+       setIsSubmitting(false);
+       return;
     }
     
     // 2. Check for originality
@@ -66,13 +83,7 @@ export function GameClient() {
       }
     } catch (error) {
       console.error("AI originality check failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur IA",
-        description: "Impossible de vérifier l'originalité. Réessayez.",
-      });
-      setIsSubmitting(false);
-      return;
+      // Non-critical, so we can continue without it
     }
     
     // 3. Calculate points
