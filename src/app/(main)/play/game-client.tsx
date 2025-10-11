@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase";
 
 const LEVEL_TIME = 60; // 60 seconds per level
@@ -55,11 +55,13 @@ export function GameClient() {
   const [currentDescription, setCurrentDescription] = useState("");
 
   const { toast } = useToast();
+  
+  useEffect(() => {
+    if (showTimeUp) {
+      updateScore(-10); // Penalize for time up
+    }
+  }, [showTimeUp, updateScore]);
 
-  const handleTimeUp = useCallback(() => {
-    setShowTimeUp(true);
-    updateScore(-10); // Penalize for time up
-  }, [updateScore]);
 
   const startTimer = useCallback(() => {
     if (timerId) clearInterval(timerId);
@@ -69,14 +71,14 @@ export function GameClient() {
       setTimeRemaining(prev => {
         if (prev <= 1) {
           clearInterval(newTimerId);
-          handleTimeUp();
+          setShowTimeUp(true);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     setTimerId(newTimerId);
-  }, [timerId, handleTimeUp]);
+  }, [timerId]);
 
   const generateLevel = useCallback(async () => {
     setIsSubmitting(true);
