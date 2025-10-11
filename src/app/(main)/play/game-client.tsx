@@ -36,13 +36,19 @@ export function GameClient() {
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [timerId, setTimerId] = useState<NodeJS.Timeout | null>(null);
+  const [isTimeUp, setIsTimeUp] = useState(false);
 
   const { toast } = useToast();
 
   const currentLevelData = useMemo(() => gameLevels[level - 1], [level]);
 
+  const handleTimeUp = useCallback(() => {
+    setIsTimeUp(true);
+  }, []);
+
   const startTimer = useCallback(() => {
     if (timerId) clearInterval(timerId);
+    setIsTimeUp(false);
     setTimeRemaining(LEVEL_TIME);
     const newTimerId = setInterval(() => {
       setTimeRemaining(prev => {
@@ -55,7 +61,19 @@ export function GameClient() {
       });
     }, 1000);
     setTimerId(newTimerId);
-  }, [timerId]);
+  }, [timerId, handleTimeUp]);
+
+  useEffect(() => {
+    if (isTimeUp) {
+      toast({
+        variant: "destructive",
+        title: "Temps écoulé !",
+        description: "Vous avez perdu 10 points. Essayez d'être plus rapide !",
+      });
+      updateScore(-10);
+      nextLevel();
+    }
+  }, [isTimeUp, toast, updateScore, nextLevel]);
 
 
   const generateJumbledLetters = useCallback(async () => {
@@ -99,16 +117,6 @@ export function GameClient() {
       if (timerId) clearInterval(timerId);
     };
   }, [level]);
-
-  const handleTimeUp = () => {
-    toast({
-      variant: "destructive",
-      title: "Temps écoulé !",
-      description: "Vous avez perdu 10 points. Essayez d'être plus rapide !",
-    });
-    updateScore(-10);
-    nextLevel();
-  };
 
   const handleKeyPress = (key: string, index: number) => {
     setInputValue((prev) => prev + key);
