@@ -104,7 +104,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex flex-1 items-center justify-end gap-2">
-            {pathname === "/play" && (
+            {pathname !== "/" && (
                  <Button asChild variant="ghost" size="icon">
                   <Link href="/" aria-label="Accueil">
                     <Home />

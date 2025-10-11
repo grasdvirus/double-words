@@ -8,17 +8,15 @@ import { Play, Trophy, BookOpen, Settings, UserPlus, LogIn } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithGoogle } from '@/firebase/auth';
-import { SiteHeader } from '@/components/site-header';
 
 export default function Home() {
   const { user } = useUser();
   const auth = useAuth();
 
   return (
-    <div className="relative flex flex-col min-h-screen overflow-hidden">
-        <SiteHeader />
+    <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden">
       <FloatingLettersBackground />
-      <div className="z-10 text-center p-4 w-full max-w-3xl mx-auto flex flex-col items-center justify-center flex-1">
+      <div className="z-10 text-center p-4 w-full max-w-3xl mx-auto">
         <h1 className="text-6xl md:text-8xl font-bold text-primary font-headline tracking-tighter mb-4 animate-fade-in-down">
           DOUBLE WORDS
         </h1>
@@ -27,14 +25,14 @@ export default function Home() {
         </p>
 
         {!user && (
-           <Alert className="mb-8 text-left max-w-md">
+           <Alert className="mb-8 text-left">
             <UserPlus className="h-4 w-4" />
             <AlertTitle>Connectez-vous !</AlertTitle>
-            <AlertDescription className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span>Votre score n'apparaîtra pas dans le classement si vous jouez en tant qu'anonyme.</span>
-              <Button size="sm" onClick={() => auth && signInWithGoogle(auth)} className="flex-shrink-0">
+            <AlertDescription className="flex items-center justify-between">
+              Votre score n'apparaîtra pas dans le classement si vous jouez en tant qu'anonyme.
+              <Button size="sm" onClick={() => auth && signInWithGoogle(auth)}>
                 <LogIn className="mr-2 h-4 w-4" />
-                Connexion
+                Connexion avec Google
               </Button>
             </AlertDescription>
           </Alert>
