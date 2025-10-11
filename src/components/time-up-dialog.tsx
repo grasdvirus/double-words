@@ -42,10 +42,12 @@ export function TimeUpDialog({ isOpen, onRetry, solution }: TimeUpDialogProps) {
         </div>
         <DialogFooter>
           <Button type="button" onClick={onRetry} className="w-full">
-            Réessayer
+            Nouveau Niveau
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
+    

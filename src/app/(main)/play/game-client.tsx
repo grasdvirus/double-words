@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, FormEvent, useEffect, useRef } from "react";
+import { useState, useCallback, FormEvent, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGame } from "@/hooks/use-game";
@@ -9,13 +9,17 @@ import { TimeUpDialog } from "@/components/time-up-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
+import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb, UserPlus, LogIn } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
-import { useUser, useFirestore } from "@/firebase";
+import { useUser, useFirestore, useAuth } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import Link from "next/link";
+import { signInWithGoogle } from "@/firebase/auth";
+
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -39,6 +43,7 @@ const generateRandomChallenge = () => {
 export function GameClient() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { level, score, updateScore, nextLevel, history, addWordToHistory, settings } = useGame();
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,19 +84,17 @@ export function GameClient() {
         timerRef.current = requestAnimationFrame(animate);
       } else {
         stopTimer();
-        if(!showLevelComplete) {
+        if(!showLevelComplete && !showTimeUp) {
             setShowTimeUp(true);
             updateScore(-10); // Penalize for time up
         }
       }
     };
     timerRef.current = requestAnimationFrame(animate);
-  }, [stopTimer, updateScore, showLevelComplete]);
+  }, [stopTimer, updateScore, showLevelComplete, showTimeUp]);
   
-  const generateLevel = useCallback(async (isRetry = false) => {
-    if (!isRetry) {
-        setIsSubmitting(true);
-    }
+  const generateLevel = useCallback(async () => {
+    setIsSubmitting(true);
     setInputValue("");
     setDisabledLetterIndexes([]);
     setShowLevelComplete(false);
@@ -99,58 +102,50 @@ export function GameClient() {
     stopTimer();
     setTimeRemaining(LEVEL_TIME);
 
-    // Only generate a new word if it's not a retry
-    if (!isRetry) {
-        const challenge = generateRandomChallenge();
-        const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
-        setCurrentChallenge(challenge);
-        setCurrentDescription(description);
+    const challenge = generateRandomChallenge();
+    const description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
+    setCurrentChallenge(challenge);
+    setCurrentDescription(description);
 
-        try {
-          const result = await evaluateAnswer({
-            wordOrPhrase: '',
-            challenge: challenge,
-            description: description,
-            language: settings.language,
-          });
-          const word = result.solutionWord.toUpperCase();
-          setSolutionWord(word);
-          setHint(result.hint);
+    try {
+      const result = await evaluateAnswer({
+        wordOrPhrase: '',
+        challenge: challenge,
+        description: description,
+        language: settings.language,
+      });
+      const word = result.solutionWord.toUpperCase();
+      setSolutionWord(word);
+      setHint(result.hint);
 
-          const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-          const solutionLetters = word.split('');
-          const extraLetters: string[] = [];
-          while (extraLetters.length < 4) {
-            const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
-            if (!solutionLetters.includes(randomLetter)) {
-              extraLetters.push(randomLetter);
-            }
-          }
-          
-          const allLetters = shuffle([...solutionLetters, ...extraLetters]);
-          setJumbledLetters(allLetters);
-        } catch(e) {
-            toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
-        } finally {
-            setIsSubmitting(false);
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const solutionLetters = word.split('');
+      const extraLetters: string[] = [];
+      while (extraLetters.length < 4) {
+        const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+        if (!solutionLetters.includes(randomLetter)) {
+          extraLetters.push(randomLetter);
         }
-    } else {
-        // On retry, just reshuffle existing letters
-        setJumbledLetters(prev => shuffle([...prev]));
+      }
+      
+      const allLetters = shuffle([...solutionLetters, ...extraLetters]);
+      setJumbledLetters(allLetters);
+      setDisabledLetterIndexes(new Array(allLetters.length).fill(false));
+    } catch(e) {
+        toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
+    } finally {
+        setIsSubmitting(false);
+        startTimer();
     }
-    
-    setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
-    startTimer();
-  }, [startTimer, stopTimer, toast, settings.language, jumbledLetters.length]);
+  }, [startTimer, stopTimer, toast, settings.language]);
 
   useEffect(() => {
     generateLevel();
-
     return () => {
       stopTimer();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level]);
+  }, [level]); // Regenerate on level change
 
   useEffect(() => {
     if (user && firestore && score > 0) {
@@ -207,7 +202,7 @@ export function GameClient() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isSubmitting || showTimeUp) return;
+    if (!inputValue.trim() || isSubmitting || showTimeUp || showLevelComplete) return;
 
     setIsSubmitting(true);
     const cleanedInput = inputValue.trim();
@@ -257,7 +252,8 @@ export function GameClient() {
   };
 
   const handleRetry = () => {
-    generateLevel(true);
+    setShowTimeUp(false);
+    generateLevel(); // Generate a completely new level instead of retrying
   };
   
   const progressPercentage = (level % 10) * 10;
@@ -304,6 +300,19 @@ export function GameClient() {
           </CardContent>
       </Card>
       <div className="w-full max-w-3xl flex flex-col gap-4">
+        {!user && (
+          <Alert>
+            <UserPlus className="h-4 w-4" />
+            <AlertTitle>Vous jouez en tant qu'anonyme</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              Votre score n'apparaîtra pas dans le classement.
+              <Button size="sm" onClick={() => auth && signInWithGoogle(auth)}>
+                <LogIn className="mr-2 h-4 w-4" />
+                Connexion
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
         <Card>
           <CardHeader className="text-center">
             <div className="flex justify-between items-center mb-2">
@@ -328,7 +337,7 @@ export function GameClient() {
         </Card>
         
         <div className="flex justify-center mb-2">
-            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || showTimeUp}>
+            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || showTimeUp || showLevelComplete}>
                 <Lightbulb className="mr-2 h-4 w-4" />
                 Indice (-2 points)
             </Button>
@@ -338,13 +347,13 @@ export function GameClient() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
                 <div className="flex justify-center items-center gap-2 flex-wrap">
-                    {solutionWord ? renderInputBoxes() : (
+                    {isSubmitting && !solutionWord ? (
                       <div className="h-12 flex items-center justify-center">
                         <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
                       </div>
-                    )}
+                    ) : renderInputBoxes()}
                 </div>
-                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || showTimeUp}>
+                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || showTimeUp || showLevelComplete}>
                     <Undo2 className="h-5 w-5"/>
                 </Button>
             </div>
@@ -354,11 +363,11 @@ export function GameClient() {
                     <LoaderCircle className="animate-spin h-10 w-10 text-primary" />
                 </div>
             ) : (
-                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp} />
+                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp || showLevelComplete} />
             )}
 
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp}>
-              {isSubmitting ? (
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp || showLevelComplete}>
+              {isSubmitting && !showLevelComplete ? (
                 <LoaderCircle className="animate-spin mr-2" />
               ) : (
                 <ArrowRight className="mr-2" />
@@ -384,3 +393,5 @@ export function GameClient() {
     </div>
   );
 }
+
+    
