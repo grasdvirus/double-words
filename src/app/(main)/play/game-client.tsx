@@ -172,49 +172,18 @@ export function GameClient() {
     if (timerId) clearInterval(timerId);
     const cleanedInput = inputValue.trim();
 
-    try {
-      const evaluationResult = await evaluateAnswer({
-        wordOrPhrase: cleanedInput,
-        challenge: currentLevelData.challenge,
-        description: currentLevelData.description,
+    if (cleanedInput.toUpperCase() !== solutionWord) {
+      toast({
+        variant: "default",
+        title: "Presque !",
+        description: "Ce n'est pas le bon mot. Essayez encore !",
       });
-
-      if (cleanedInput.toUpperCase() !== solutionWord) {
-        toast({
-          variant: "default",
-          title: "Presque !",
-          description: "Ce n'est pas le bon mot. Essayez encore !",
-        });
-        updateScore(-5);
-        setIsSubmitting(false);
-        // Reset for next try
-        generateJumbledLetters();
-        setInputValue("");
-        return;
-      }
-
-      if (!evaluationResult.isValid) {
-        toast({
-          variant: "default",
-          title: "Hmm...",
-          description: evaluationResult.feedback,
-        });
-        updateScore(-5);
-        setIsSubmitting(false);
-        // Reset for next try
-        generateJumbledLetters();
-        setInputValue("");
-        return;
-      }
-    } catch (error) {
-       console.error("AI evaluation failed:", error);
-       toast({
-         variant: "destructive",
-         title: "Erreur IA",
-         description: "Impossible d'évaluer la réponse. Réessayez.",
-       });
-       setIsSubmitting(false);
-       return;
+      updateScore(-5);
+      setIsSubmitting(false);
+      // Reset for next try
+      generateJumbledLetters();
+      setInputValue("");
+      return;
     }
     
     let bonusPoints = 0;
