@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Swords, Trophy, BookOpen, Settings, Home, Menu, User, LogIn, LogOut } from "lucide-react";
+import { Swords, Trophy, BookOpen, Settings, Home, Menu, User, LogIn, LogOut, Loader2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -26,10 +26,10 @@ const navItems = [
 ];
 
 function AuthButton() {
-  const { user, loading } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
 
-  if (loading) return <Button variant="ghost" size="icon" disabled><Loader2 className="animate-spin" /></Button>;
+  if (isUserLoading) return <Button variant="ghost" size="icon" disabled><Loader2 className="animate-spin" /></Button>;
 
   if (user) {
     return (
@@ -64,7 +64,7 @@ function AuthButton() {
   }
 
   return (
-    <Button onClick={() => signInWithGoogle(auth)}>
+    <Button onClick={() => auth && signInWithGoogle(auth)}>
       <LogIn className="mr-2" />
       Connexion
     </Button>

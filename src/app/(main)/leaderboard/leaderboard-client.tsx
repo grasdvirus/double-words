@@ -3,10 +3,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gem, Medal, Shield, Trophy, LoaderCircle } from "lucide-react";
-import { useCollection } from "@/firebase";
+import { useCollection, useFirestore } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
-import { useFirestore } from "@/firebase";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useMemoFirebase } from "@/firebase/provider";
 
 interface Player {
   id: string;
@@ -24,8 +24,12 @@ const getTier = (score: number) => {
 
 export function LeaderboardClient() {
   const firestore = useFirestore();
-  const leaderboardQuery = firestore ? query(collection(firestore, "leaderboard"), orderBy("score", "desc"), limit(10)) : null;
-  const { data: leaderboardData, loading } = useCollection<Player>(leaderboardQuery);
+  const leaderboardQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "leaderboard"), orderBy("score", "desc"), limit(10));
+  }, [firestore]);
+  
+  const { data: leaderboardData, isLoading } = useCollection<Player>(leaderboardQuery);
 
   return (
     <div className="container py-8 max-w-4xl mx-auto">
@@ -39,7 +43,7 @@ export function LeaderboardClient() {
           <CardTitle>Top 10 des Joueurs</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="flex justify-center items-center h-40">
               <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
             </div>
@@ -62,7 +66,7 @@ export function LeaderboardClient() {
                       <TableCell className="font-semibold flex items-center gap-3">
                         <Avatar className="h-9 w-9">
                           <AvatarImage src={player.photoURL} alt={player.displayName} />
-                          <AvatarFallback>{player.displayName.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>{player.displayName?.charAt(0)}</AvatarFallback>
                         </Avatar>
                         {player.displayName}
                       </TableCell>

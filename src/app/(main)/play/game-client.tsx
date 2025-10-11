@@ -13,8 +13,9 @@ import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react"
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
-import { useUser } from "@/firebase";
-import { saveScore } from "@/firebase/firestore-data";
+import { useUser, useFirestore } from "@/firebase";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { setDocumentNonBlocking } from "@/firebase";
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -37,6 +38,7 @@ const generateRandomChallenge = () => {
 
 export function GameClient() {
   const { user } = useUser();
+  const firestore = useFirestore();
   const { level, score, updateScore, nextLevel, history, addWordToHistory } = useGame();
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,10 +128,16 @@ export function GameClient() {
   }, [level]);
 
   useEffect(() => {
-    if (user && score > 0) {
-      saveScore(user, score);
+    if (user && firestore && score > 0) {
+      const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
+      setDocumentNonBlocking(leaderboardRef, {
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        score: score,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
     }
-  }, [score, user]);
+  }, [score, user, firestore]);
 
   const handleKeyPress = (key: string, index: number) => {
     if (inputValue.length >= solutionWord.length || showTimeUp) return;
@@ -189,8 +197,9 @@ export function GameClient() {
       updateScore(-5);
       setIsSubmitting(false);
       // Reset for next try
-      generateLevel();
       setInputValue("");
+      setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
+      startTimer();
       return;
     }
     
