@@ -66,17 +66,15 @@ export function GameClient() {
   }, [timerId, handleTimeUp]);
   
   useEffect(() => {
-    if (isTimeUp && solutionWord) {
-      toast({
-        variant: "destructive",
-        title: "Temps écoulé !",
-        description: "Vous avez perdu 10 points. Le mot était : " + solutionWord,
-      });
+    if (isTimeUp) {
       updateScore(-10);
-      nextLevel();
+      // Automatically move to the next level after a delay to show the solution
+      setTimeout(() => {
+        nextLevel();
+      }, 3000); // 3-second delay
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTimeUp, solutionWord]);
+  }, [isTimeUp]);
 
 
   const generateJumbledLetters = useCallback(async () => {
@@ -243,7 +241,7 @@ export function GameClient() {
     <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
        <Card className={cn(
             "mb-4 w-full max-w-3xl transition-all duration-500",
-            isTimeUp ? "bg-card" : "bg-transparent border-transparent"
+            "bg-transparent border-transparent"
           )}>
         <CardContent className="p-2 text-center">
             <div className={cn(
@@ -283,7 +281,7 @@ export function GameClient() {
         </Card>
         
         <div className="flex justify-center mb-2">
-            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting}>
+            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || isTimeUp}>
                 <Lightbulb className="mr-2 h-4 w-4" />
                 Indice (-2 points)
             </Button>
@@ -299,7 +297,7 @@ export function GameClient() {
                       </div>
                     )}
                 </div>
-                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0}>
+                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || isTimeUp}>
                     <Undo2 className="h-5 w-5"/>
                 </Button>
             </div>
@@ -309,10 +307,10 @@ export function GameClient() {
                     <LoaderCircle className="animate-spin h-10 w-10 text-primary" />
                 </div>
             ) : (
-                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting} />
+                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || isTimeUp} />
             )}
 
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length}>
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || isTimeUp}>
               {isSubmitting ? (
                 <LoaderCircle className="animate-spin mr-2" />
               ) : (
