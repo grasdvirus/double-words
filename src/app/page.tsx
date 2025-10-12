@@ -29,11 +29,13 @@ export default function Home() {
       await signInWithGoogle(auth);
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de connexion",
-        description: "Impossible de se connecter avec Google. Veuillez réessayer.",
-      });
+      if (error.code !== 'auth/popup-closed-by-user') {
+        toast({
+          variant: "destructive",
+          title: "Erreur de connexion",
+          description: "Impossible de se connecter avec Google. Veuillez réessayer.",
+        });
+      }
     }
   };
 
@@ -82,7 +84,7 @@ export default function Home() {
             </Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="w-full">
-            <Link href="#">
+            <Link href="/duel">
               <Users className="mr-2" />
               Duel (2J)
             </Link>
