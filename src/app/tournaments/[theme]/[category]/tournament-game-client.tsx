@@ -13,13 +13,13 @@ import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { getTournamentWords } from "@/lib/tournament-data";
+import { getTournamentLevel, getTournamentMaxLevel, TournamentLevel } from "@/lib/tournament-levels";
 import Link from "next/link";
-
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
-// Helper to shuffle an array
 const shuffle = (array: string[]) => {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -29,6 +29,8 @@ const shuffle = (array: string[]) => {
 };
 
 interface LevelData {
+  challenge: string;
+  description: string;
   solutionWord: string;
   jumbledLetters: string[];
 }
@@ -50,16 +52,15 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   const [lastRoundPoints, setLastRoundPoints] = useState({ points: 0, bonus: 0 });
   
   const [currentLevelData, setCurrentLevelData] = useState<LevelData | null>(null);
-  const [wordList, setWordList] = useState<string[] | null>(null);
-  const [usedWords, setUsedWords] = useState<string[]>([]);
   const [level, setLevel] = useState(1);
+  const [maxLevel, setMaxLevel] = useState(0);
 
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [isWrong, setIsWrong] = useState(false);
   const [scoreKey, setScoreKey] = useState(0);
+  const [levelKey, setLevelKey] = useState(0);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-
 
   const timerRef = useRef<number | null>(null);
   const levelStartTimeRef = useRef<number | null>(null);
@@ -75,7 +76,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
 
   const handleTimeUp = useCallback(() => {
       stopTimer();
-      updateScore(-10); // Penalize for time up
+      updateScore(-10);
       setShowTimeUp(true);
   }, [updateScore, stopTimer]);
 
@@ -100,22 +101,16 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     timerRef.current = requestAnimationFrame(animate);
   }, [stopTimer, handleTimeUp]);
 
-  const prepareLevelData = useCallback((): LevelData | null => {
-    if (!wordList || wordList.length === 0) {
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger la liste de mots." });
+  const prepareLevelData = useCallback((forLevel: number): LevelData | null => {
+    const levelConfig = getTournamentLevel(theme, category, forLevel);
+    
+    if (!levelConfig) {
       return null;
     }
 
-    const availableWords = wordList.filter(w => !usedWords.includes(w));
-    if (availableWords.length === 0) {
-        // All words used, maybe show a "congratulations" message
-        return null;
-    }
-
-    const word = availableWords[Math.floor(Math.random() * availableWords.length)];
-
+    const word = levelConfig.solutionWord.toUpperCase();
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const solutionLetters = word.toUpperCase().split('');
+    const solutionLetters = word.split('');
     const extraLetters: string[] = [];
     while (extraLetters.length < Math.max(2, 12 - solutionLetters.length)) {
       const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
@@ -127,23 +122,25 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     const allLetters = shuffle([...solutionLetters, ...extraLetters]);
     
     return {
+      challenge: levelConfig.challenge,
+      description: levelConfig.description,
       solutionWord: word,
       jumbledLetters: allLetters,
     };
-  }, [wordList, usedWords, toast]);
+  }, [theme, category]);
 
-  const setupLevel = useCallback((isRetry = false) => {
-    const data = prepareLevelData();
+  const setupLevel = useCallback((levelNumber: number, isRetry = false) => {
+    const data = prepareLevelData(levelNumber);
     if (!data) {
-        // Handle no more words case
-        return;
+      setCurrentLevelData(null); // End of tournament
+      return;
     }
 
     setCurrentLevelData(data);
     setInputValue("");
     setDisabledLetterIndexes(new Array(data.jumbledLetters.length).fill(false));
     setShowLevelComplete(false);
-setShowTimeUp(false);
+    setShowTimeUp(false);
     
     if (!isRetry) {
       startTimer();
@@ -152,21 +149,16 @@ setShowTimeUp(false);
 
 
   useEffect(() => {
-    const words = getTournamentWords(theme, category);
-    if (words) {
-      setWordList(words);
+    const max = getTournamentMaxLevel(theme, category);
+    if (max > 0) {
+      setMaxLevel(max);
+      setupLevel(level);
     } else {
-        toast({ variant: "destructive", title: "Erreur", description: "Ce tournoi n'existe pas." });
+      toast({ variant: "destructive", title: "Erreur", description: "Ce tournoi n'existe pas." });
     }
-  }, [theme, category, toast]);
-
-  useEffect(() => {
-      if (wordList && isInitialLoading) {
-        setupLevel();
-        setIsInitialLoading(false);
-      }
-  }, [wordList, isInitialLoading, setupLevel]);
-
+    setIsInitialLoading(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, category]);
 
   useEffect(() => {
     if (user && firestore && score > 0) {
@@ -180,6 +172,10 @@ setShowTimeUp(false);
     }
     setScoreKey(prev => prev + 1);
   }, [score, user, firestore]);
+  
+  useEffect(() => {
+    setLevelKey(prev => prev + 1);
+  }, [level]);
 
   const handleKeyPress = (key: string, index: number) => {
     if (!currentLevelData || inputValue.length >= currentLevelData.solutionWord.length || showTimeUp) return;
@@ -198,7 +194,6 @@ setShowTimeUp(false);
     setInputValue((prev) => prev.slice(0, -1));
 
     let reEnabled = false;
-    // Find the last disabled letter that matches to re-enable it
     for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
         if(currentLevelData.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
             setDisabledLetterIndexes(prev => {
@@ -247,7 +242,6 @@ setShowTimeUp(false);
     const totalPoints = 10 + timeBonus;
 
     updateScore(totalPoints);
-    setUsedWords(prev => [...prev, currentLevelData.solutionWord]);
     
     setLastRoundPoints({ points: totalPoints, bonus: timeBonus });
     setShowLevelComplete(true);
@@ -255,14 +249,16 @@ setShowTimeUp(false);
   };
   
   const handleNextLevel = () => {
-    setLevel(prev => prev + 1);
+    const next = level + 1;
+    setLevel(next);
     setShowLevelComplete(false);
-    setupLevel();
+    setupLevel(next);
   };
 
   const handleRetry = () => {
     setShowTimeUp(false);
-    setupLevel(true);
+    // Restart with a new word from the same level
+    setupLevel(level, true);
     startTimer();
   };
   
@@ -313,7 +309,7 @@ setShowTimeUp(false);
          <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1 text-center">
             <h2 className="text-2xl font-bold text-primary mb-4">Tournoi terminé !</h2>
             <p className="text-muted-foreground mb-8">
-                Bravo, vous avez trouvé tous les mots de cette catégorie.
+                Bravo, vous avez trouvé tous les mots de cette catégorie. Votre score final a été enregistré.
             </p>
             <Button asChild>
                 <Link href="/tournaments">Retour aux tournois</Link>
@@ -321,28 +317,38 @@ setShowTimeUp(false);
         </div>
     )
   }
+  
+  const progressPercentage = maxLevel > 0 ? (level / maxLevel) * 100 : 0;
 
   return (
     <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1 animate-fade-in-up">
       <div className="w-full max-w-3xl flex flex-col gap-4">
         
-        <div className="flex justify-between items-center mb-2 px-4">
-          <div className="text-left">
-            <p className="text-sm text-muted-foreground">Mot N°</p>
-            <p className="text-2xl font-bold text-primary animate-pop-in">{level}</p>
-          </div>
-          <div className="flex flex-col items-center">
-            <Clock className="h-6 w-6 text-primary" />
-            <p className="text-2xl font-bold text-primary">{Math.ceil(timeRemaining)}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Score Total</p>
-            <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
-          </div>
-        </div>
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-left">
+                <p className="text-sm text-muted-foreground">Niveau</p>
+                <p key={`level-${levelKey}`} className="text-2xl font-bold text-primary animate-pop-in">{level} / {maxLevel}</p>
+              </div>
+               <div className="flex flex-col items-center">
+                 <Clock className="h-6 w-6 text-primary" />
+                 <p className="text-2xl font-bold text-primary">{Math.ceil(timeRemaining)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Score</p>
+                <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
+              </div>
+            </div>
+             <CardTitle className="text-2xl font-semibold">
+              Défi : {currentLevelData?.description}
+            </CardTitle>
+            <Progress value={progressPercentage} className="w-full mt-4" />
+          </CardHeader>
+        </Card>
         
         <div className="flex justify-center mb-2">
-            <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || showTimeUp || showLevelComplete}>
+            <Button variant="outline" size="sm" onClick={showHint} disabled={true}>
                 <Lightbulb className="mr-2 h-4 w-4" />
                 Indice
             </Button>
@@ -379,7 +385,7 @@ setShowTimeUp(false);
         onContinue={handleNextLevel}
         level={level}
         points={lastRoundPoints.points}
-        bonusPoints={0} // Pas de bonus d'originalité dans les tournois
+        bonusPoints={0}
       />
       <TimeUpDialog 
         isOpen={showTimeUp}

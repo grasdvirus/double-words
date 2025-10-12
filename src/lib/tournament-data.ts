@@ -1,6 +1,5 @@
-
-// Données pour le mode Tournoi.
-// À l'avenir, cela pourrait être déplacé vers une base de données ou un CMS.
+// This file is being deprecated in favor of tournament-levels.ts
+// It is kept for reference but is no longer actively used in the game logic.
 
 export interface TournamentData {
   [theme: string]: {
@@ -54,9 +53,11 @@ export const tournamentData: TournamentData = {
   },
 };
 
+// This function is no longer the primary way to get words for tournaments.
+// The logic has been moved to getTournamentLevel in tournament-levels.ts.
 export function getTournamentWords(theme: string, category: string): string[] | null {
     try {
-        return tournamentData[theme][category].words || null;
+        return tournamentData[theme]?.[category]?.words || null;
     } catch (e) {
         return null;
     }
