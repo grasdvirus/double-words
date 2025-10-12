@@ -289,14 +289,14 @@ export function GameClient() {
   const renderInputBoxes = () => {
     if (isInitialLoading || !solutionWord) {
       return (
-        <div className="flex justify-center items-center gap-2 flex-wrap h-14">
+        <div className="flex justify-center items-center gap-2 flex-wrap min-h-14">
           <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
         </div>
       );
     }
 
     return (
-      <div className="relative h-14">
+      <div className="relative min-h-14">
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
           {Array.from({ length: solutionWord.length }).map((_, i) => {
             const char = inputValue[i] || '';
@@ -366,7 +366,7 @@ export function GameClient() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
                 {renderInputBoxes()}
-                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || showTimeUp || showLevelComplete}>
+                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2 transform-gpu" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || showTimeUp || showLevelComplete}>
                     <Undo2 className="h-5 w-5"/>
                 </Button>
             </div>
@@ -403,5 +403,7 @@ export function GameClient() {
     </div>
   );
 }
+
+    
 
     
