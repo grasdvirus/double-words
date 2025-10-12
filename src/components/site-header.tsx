@@ -34,23 +34,23 @@ function AuthButton() {
 
 
   const handleSignIn = async () => {
-    if (auth) {
-      try {
-        await signInWithGoogle(auth);
-      } catch (error: any) {
-        console.error("Erreur de connexion Google :", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de connexion",
-          description: "Impossible de se connecter avec Google. Veuillez réessayer.",
-        });
-      }
-    } else {
+    if (!auth) {
       console.error("L'instance d'authentification Firebase n'est pas prête.");
       toast({
         variant: "destructive",
         title: "Erreur",
         description: "Le service d'authentification n'est pas disponible.",
+      });
+      return;
+    }
+    try {
+      await signInWithGoogle(auth);
+    } catch (error: any) {
+      console.error("Erreur de connexion Google :", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de connexion",
+        description: "Impossible de se connecter avec Google. Veuillez réessayer.",
       });
     }
   };

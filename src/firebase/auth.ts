@@ -1,8 +1,7 @@
-
 'use client';
 import {
   Auth,
-  signInWithRedirect,
+  signInWithPopup,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
@@ -10,19 +9,21 @@ import {
 const provider = new GoogleAuthProvider();
 
 /**
- * Lance la connexion avec Google en utilisant une redirection.
- * Cette méthode est plus fiable sur les appareils mobiles et évite les problèmes de pop-ups.
+ * Ouvre une fenêtre pop-up pour la connexion avec Google.
  * @param auth L'instance d'authentification Firebase.
  */
 export async function signInWithGoogle(auth: Auth): Promise<void> {
   try {
-    // La redirection démarre ici. La résolution de la promesse a lieu
-    // sur la page de redirection via onAuthStateChanged.
-    await signInWithRedirect(auth, provider);
-  } catch (error) {
-    // Cette erreur se produit si la redirection ne peut pas être initiée.
-    console.error("Erreur lors de l'initiation de la redirection Google :", error);
-    // Nous propageons l'erreur pour qu'elle soit gérée par l'appelant (par ex. afficher un toast).
+    await signInWithPopup(auth, provider);
+  } catch (error: any) {
+    // Si l'utilisateur ferme la fenêtre, une erreur est levée.
+    // Nous ne voulons pas la traiter comme une erreur fatale, donc nous ne la propageons pas.
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.log('Connexion annulée par l\'utilisateur.');
+      return;
+    }
+    // Pour les autres erreurs, nous les propageons pour qu'elles soient gérées.
+    console.error("Erreur de connexion Google :", error);
     throw error;
   }
 }
