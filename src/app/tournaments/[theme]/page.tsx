@@ -5,31 +5,32 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight, Medal, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { tournamentData } from "@/lib/tournament-data";
+import { notFound } from "next/navigation";
 
-// Données fictives pour les catégories. Cela pourra être rendu dynamique plus tard.
-const categoriesByTheme: { [key: string]: any[] } = {
-  football: [
-    {
-      name: "Joueurs",
-      slug: "joueurs",
-      description: "Retrouvez les noms de joueurs de légende et actuels.",
-      icon: <Users className="h-6 w-6 text-primary" />,
-    },
-    {
-      name: "Équipes",
-      slug: "equipes",
-      description: "Devinez les noms des clubs et des équipes nationales.",
-      icon: <Medal className="h-6 w-6 text-primary" />,
-    },
-  ],
-};
+
+const ICONS: {[key: string]: React.ReactNode} = {
+    joueurs: <Users className="h-6 w-6 text-primary" />,
+    equipes: <Medal className="h-6 w-6 text-primary" />
+}
 
 // Pour capitaliser la première lettre
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function TournamentThemePage({ params }: { params: { theme: string } }) {
   const { theme } = params;
-  const categories = categoriesByTheme[theme] || [];
+  const themeData = tournamentData[theme];
+  
+  if (!themeData) {
+    notFound();
+  }
+
+  const categories = Object.keys(themeData).map(slug => ({
+      slug,
+      ...themeData[slug],
+      icon: ICONS[slug] || <Users className="h-6 w-6 text-primary" />
+  }));
+
   const themeName = capitalize(theme);
 
   return (
@@ -57,7 +58,6 @@ export default function TournamentThemePage({ params }: { params: { theme: strin
                     {category.icon}
                     {category.name}
                   </CardTitle>
-                  <CardDescription>{category.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Button asChild className="w-full">
