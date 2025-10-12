@@ -1,73 +1,72 @@
 /**
- * @fileoverview Firestore Security Rules for Prototyping.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a user-ownership model for user profiles and leaderboard entries,
+ *              while allowing public read access to leaderboard data. Duel games can be created by authenticated users.
  *
- * Core Philosophy:
- * This ruleset prioritizes rapid prototyping by focusing on authorization while relaxing data validation.
- * It enforces a user-ownership model, ensuring users can only modify their own data, but it does not
- * validate the specific data shapes beyond what's necessary for authorization.
+ * @dataStructure
+ *  /users/{userId} - User profile information, writable only by the user.
+ *  /leaderboard/{userId} - Leaderboard entries, publicly readable, writable only by the user.
+ *  /duels/{duelId} - Duel game sessions, can be created by any authenticated user.
  *
- * Data Structure:
- * - /users/{userId}: Stores public user profile information. Each user can only write to their own document.
- * - /leaderboard/{userId}: Stores the highest score for each user. Publicly readable, but a user can only write to their own entry.
+ * @keySecurityDecisions
+ *  - User profiles are private and only writable by the owning user.
+ *  - Leaderboard data is publicly readable to encourage competition.
+ *  - Duel games can be created by any authenticated user.
  *
- * Key Security Decisions:
- * - Users can only read the leaderboard.
- * - Users can only modify their own documents in both /users and /leaderboard.
- * - No listing of users is allowed to protect user privacy.
- *
- * Denormalization for Authorization:
- *  -  The rules enforce ownership by comparing `request.auth.uid` to the `userId` in the document path.  No denormalization is required as the path itself provides the necessary information.
- *
- * Structural Segregation:
- *  - No distinction between private and public collections is needed in this data model as the current rules cover the requirements
+ * @denormalizationForAuthorization
+ *  - For `duels/{duelId}`, the `hostId` field on the document is used to enforce ownership for updates and deletes.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Allows a user to read and write their own profile data.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user_abc' can create their own profile document at /users/user_abc.
-     * @deny (create) User with UID 'user_def' cannot create a profile document at /users/user_abc.
-     * @allow (get) Any user can read any user profile
-     * @deny (list) No one can list all users.
-     * @allow (update) User with UID 'user_abc' can update their own profile document at /users/user_abc.
-     * @deny (update) User with UID 'user_def' cannot update the profile document at /users/user_abc.
-     * @allow (delete) User with UID 'user_abc' can delete their own profile document at /users/user_abc.
-     * @deny (delete) User with UID 'user_def' cannot delete the profile document at /users/user_abc.
+     * @allow (get, create, update) - User `XrpFF8e1mQQK27g4Lt4Q2SalA8g2` can read/write their profile at `/users/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
+     * @deny (get, create, update) - User `OtherUser` cannot read/write profile at `/users/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if true;
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
       allow create: if isSignedIn() && isOwner(userId);
       allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if false;
     }
 
     /**
-     * @description Controls access to leaderboard entries.
+     * @description Allows anyone to read leaderboard data, but only the user to update their own entry.
      * @path /leaderboard/{userId}
-     * @allow (create) User with UID 'user_abc' can create their own leaderboard entry at /leaderboard/user_abc.
-     * @deny (create) User with UID 'user_def' cannot create a leaderboard entry at /leaderboard/user_abc.
-     * @allow (get) Any user can read any leaderboard entry.
-     * @allow (list) Any user can list leaderboard entries.
-     * @allow (update) User with UID 'user_abc' can update their own leaderboard entry at /leaderboard/user_abc.
-     * @deny (update) User with UID 'user_def' cannot update the leaderboard entry at /leaderboard/user_abc.
-     * @allow (delete) User with UID 'user_abc' can delete their own leaderboard entry at /leaderboard/user_abc.
-     * @deny (delete) User with UID 'user_def' cannot delete the leaderboard entry at /leaderboard/user_abc.
-     * @principle Enforces document ownership for writes, allows public reads.
+     * @allow (get, list) - Any user can read leaderboard entries.
+     * @allow (create, update) - User `XrpFF8e1mQQK27g4Lt4Q2SalA8g2` can create/update their entry at `/leaderboard/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
+     * @deny (create, update) - User `OtherUser` cannot create/update entry at `/leaderboard/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
+     * @principle Allows public read access while enforcing ownership for writes.
      */
     match /leaderboard/{userId} {
       allow get: if true;
       allow list: if true;
       allow create: if isSignedIn() && isOwner(userId);
       allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if false;
     }
 
-    // Helper functions
+    /**
+     * @description Allows authenticated users to create duel games, and the host to update and delete them.
+     * @path /duels/{duelId}
+     * @allow (create) - Authenticated user can create a duel.
+     * @allow (update, delete) - Host user can update/delete their duel.
+     * @deny (update, delete) - Non-host user cannot update/delete the duel.
+     * @principle Allows game creation for authenticated users, and enforces host ownership for modification.
+     */
+    match /duels/{duelId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.hostId);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.hostId);
+    }
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -77,7 +76,7 @@ service cloud.firestore {
     }
 
     function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+        return isSignedIn() && isOwner(userId) && resource != null;
     }
   }
 }
