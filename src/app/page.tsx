@@ -88,7 +88,7 @@ export default function Home() {
             </Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="w-full sm:col-span-1 lg:col-auto">
-            <Link href="#">
+            <Link href="/tournaments">
               <Calendar className="mr-2" />
               Tournois
             </Link>
