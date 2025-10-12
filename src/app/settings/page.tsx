@@ -65,7 +65,7 @@ export default function SettingsPage() {
                 </Button>
               </CardContent>
             </Card>
-          </CardContent>
+          </div>
         </div>
       </main>
     </div>
