@@ -10,7 +10,14 @@ import {
 const provider = new GoogleAuthProvider();
 
 export function signInWithGoogle(auth: Auth) {
-  return signInWithPopup(auth, provider);
+  signInWithPopup(auth, provider).catch(error => {
+    // Gère l'erreur "popup-closed-by-user" qui se produit
+    // lorsque l'utilisateur ferme la fenêtre de connexion.
+    // Ce n'est pas une erreur critique, donc nous pouvons l'ignorer.
+    if (error.code !== 'auth/popup-closed-by-user') {
+      console.error(error);
+    }
+  });
 }
 
 export function signOut(auth: Auth) {
