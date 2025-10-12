@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
 
 
 function generateGameCode(): string {
@@ -44,36 +45,49 @@ export default function CreateDuelPage() {
       return;
     }
 
-    const createDuel = async () => {
+    const createDuel = () => {
       const code = generateGameCode();
       const hostPlayer = {
         uid: user.uid,
         displayName: user.displayName || 'Joueur 1',
         photoURL: user.photoURL || '',
       };
-
-      try {
-        const docRef = await addDoc(collection(firestore, 'duels'), {
+      
+      const duelData = {
           gameCode: code,
           hostId: user.uid,
           status: 'waiting',
           players: [hostPlayer],
           createdAt: serverTimestamp(),
+      };
+
+      const duelsCollection = collection(firestore, 'duels');
+      
+      addDoc(duelsCollection, duelData)
+        .then(docRef => {
+            setGameCode(code);
+            setDuelId(docRef.id);
+        })
+        .catch(serverError => {
+            const permissionError = new FirestorePermissionError({
+                path: duelsCollection.path,
+                operation: 'create',
+                requestResourceData: duelData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            
+            // Fallback user notification
+            toast({
+              variant: 'destructive',
+              title: 'Erreur de permission',
+              description: 'Impossible de créer la partie. Vérifiez vos permissions.',
+            });
+            router.push('/duel');
         });
-        setGameCode(code);
-        setDuelId(docRef.id);
-      } catch (error) {
-        console.error('Error creating duel:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Impossible de créer la partie de duel. Veuillez réessayer.',
-        });
-        router.push('/duel');
-      }
     };
 
     createDuel();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isUserLoading, firestore, router, toast]);
 
   useEffect(() => {
