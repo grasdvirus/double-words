@@ -58,6 +58,7 @@ export function GameClient() {
   const [isWrong, setIsWrong] = useState(false);
   const [scoreKey, setScoreKey] = useState(0);
   const [levelKey, setLevelKey] = useState(0);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
 
   const timerRef = useRef<number | null>(null);
@@ -106,7 +107,6 @@ export function GameClient() {
     setShowLevelComplete(false);
     setShowTimeUp(false);
     
-    // Check if we are within predefined levels
     const predefinedLevel = gameLevels.find(l => l.level === level);
     let challenge, description, solution;
 
@@ -117,7 +117,7 @@ export function GameClient() {
     } else {
         challenge = generateRandomChallenge();
         description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
-        solution = undefined; // No predefined solution for random levels
+        solution = undefined; 
     }
     
     setCurrentChallenge(challenge);
@@ -129,7 +129,7 @@ export function GameClient() {
         challenge: challenge,
         description: description,
         language: settings.language,
-        solutionWord: solution, // Pass predefined solution if it exists
+        solutionWord: solution,
       });
       const word = result.solutionWord.toUpperCase();
       setSolutionWord(word);
@@ -160,12 +160,15 @@ export function GameClient() {
 
 
   useEffect(() => {
-    generateLevel(false); // Initial level generation
+    // Generate the level only on the client-side to avoid hydration errors
+    generateLevel(false).then(() => {
+      setIsInitialLoading(false);
+    });
     return () => {
       stopTimer();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, settings.language]); // Regenerate when level or language changes
+  }, [level, settings.language]); 
 
 
   useEffect(() => {
@@ -201,9 +204,7 @@ export function GameClient() {
     const lastChar = inputValue[inputValue.length - 1];
     setInputValue((prev) => prev.slice(0, -1));
 
-    // Re-enable the last used letter
     let reEnabled = false;
-    // Iterate backwards to find the last disabled button corresponding to the character
     for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
         if(jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
             setDisabledLetterIndexes(prev => {
@@ -240,7 +241,7 @@ export function GameClient() {
         setIsWrong(false);
         setInputValue("");
         setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
-      }, 800); // Duration of the shake animation
+      }, 800);
       setTimeout(() => {
         setIsSubmitting(false);
       }, 820);
@@ -261,7 +262,7 @@ export function GameClient() {
       console.error("AI originality check failed:", error);
     }
     
-    const timeBonus = Math.floor(timeRemaining / 10); // Bonus for remaining time
+    const timeBonus = Math.floor(timeRemaining / 10);
     const totalPoints = 10 + bonusPoints + timeBonus;
 
     updateScore(totalPoints);
@@ -275,20 +276,18 @@ export function GameClient() {
   const handleNextLevel = () => {
     nextLevel();
     setShowLevelComplete(false);
-    // The useEffect watching `level` will trigger generateLevel
   };
 
   const handleRetry = () => {
     setShowTimeUp(false);
-    generateLevel(true); // Regenerate a challenge for the same level number
+    generateLevel(true);
     startTimer();
   };
   
   const progressPercentage = Math.min(100, (level / 10) * 100);
   
   const renderInputBoxes = () => {
-    // Return a placeholder with a fixed size to prevent layout shifts
-    if (!solutionWord) {
+    if (isInitialLoading || !solutionWord) {
       return (
         <div className="flex justify-center items-center gap-2 flex-wrap h-14">
           <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
@@ -320,6 +319,14 @@ export function GameClient() {
     );
   };
 
+  if (isInitialLoading) {
+    return (
+      <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
+        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Préparation du niveau...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1 animate-fade-in-up">
@@ -372,8 +379,9 @@ export function GameClient() {
                 <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp || showLevelComplete} />
             )}
 
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp || showLevelComplete}>
-              {isSubmitting ? <LoaderCircle className="animate-spin mr-2" /> : <ArrowRight className="mr-2" />}
+             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp || showLevelComplete}>
+              {isSubmitting && <LoaderCircle className="animate-spin mr-2" />}
+              <ArrowRight className="mr-2" />
               Valider
             </Button>
           </form>
@@ -395,3 +403,5 @@ export function GameClient() {
     </div>
   );
 }
+
+    
