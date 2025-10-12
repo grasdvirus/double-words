@@ -13,6 +13,14 @@ export default function Home() {
   const { user } = useUser();
   const auth = useAuth();
 
+  const handleSignIn = () => {
+    if (auth) {
+      signInWithGoogle(auth);
+    } else {
+      console.error("L'instance d'authentification Firebase n'est pas prête.");
+    }
+  };
+
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen overflow-hidden">
       <FloatingLettersBackground />
@@ -30,7 +38,7 @@ export default function Home() {
             <AlertTitle>Connectez-vous !</AlertTitle>
             <AlertDescription className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <span>Votre score n'apparaîtra pas dans le classement.</span>
-              <Button size="sm" onClick={() => auth && signInWithGoogle(auth)} className="flex-shrink-0">
+              <Button size="sm" onClick={handleSignIn} className="flex-shrink-0">
                 <LogIn className="mr-2 h-4 w-4" />
                 Connexion
               </Button>

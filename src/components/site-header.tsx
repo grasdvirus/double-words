@@ -30,6 +30,22 @@ function AuthButton() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
 
+  const handleSignIn = () => {
+    if (auth) {
+      signInWithGoogle(auth);
+    } else {
+      console.error("L'instance d'authentification Firebase n'est pas prête.");
+    }
+  };
+
+  const handleSignOut = () => {
+    if (auth) {
+      signOut(auth);
+    } else {
+      console.error("L'instance d'authentification Firebase n'est pas prête.");
+    }
+  };
+
   if (isUserLoading) return <Button variant="ghost" size="icon" disabled><Loader2 className="animate-spin" /></Button>;
 
   if (user) {
@@ -54,7 +70,7 @@ function AuthButton() {
                 </Avatar>
                 <p className="text-xl font-semibold">{user.displayName}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
-                <Button onClick={() => auth && signOut(auth)} variant="destructive" className="mt-4">
+                <Button onClick={handleSignOut} variant="destructive" className="mt-4">
                   <LogOut className="mr-2"/>
                   Déconnexion
                 </Button>
@@ -65,7 +81,7 @@ function AuthButton() {
   }
 
   return (
-    <Button onClick={() => auth && signInWithGoogle(auth)}>
+    <Button onClick={handleSignIn}>
       <LogIn className="mr-2" />
       Connexion
     </Button>

@@ -1,8 +1,7 @@
-
 'use client';
 import {
   Auth,
-  signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
@@ -10,13 +9,9 @@ import {
 const provider = new GoogleAuthProvider();
 
 export function signInWithGoogle(auth: Auth) {
-  signInWithPopup(auth, provider).catch(error => {
-    // Gère l'erreur "popup-closed-by-user" qui se produit
-    // lorsque l'utilisateur ferme la fenêtre de connexion.
-    // Ce n'est pas une erreur critique, donc nous pouvons l'ignorer.
-    if (error.code !== 'auth/popup-closed-by-user') {
-      console.error(error);
-    }
+  // Utilise la redirection, qui est plus fiable en production et sur mobile
+  signInWithRedirect(auth, provider).catch(error => {
+    console.error("Erreur de redirection de connexion Google : ", error);
   });
 }
 
