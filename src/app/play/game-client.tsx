@@ -105,7 +105,6 @@ export function GameClient() {
     setDisabledLetterIndexes([]);
     setShowLevelComplete(false);
     setShowTimeUp(false);
-    setSolutionWord('');
     
     // Check if we are within predefined levels
     const predefinedLevel = gameLevels.find(l => l.level === level);
@@ -374,8 +373,7 @@ export function GameClient() {
             )}
 
             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp || showLevelComplete}>
-              {isSubmitting && <LoaderCircle className="animate-spin mr-2" />}
-              <ArrowRight className="mr-2" />
+              {isSubmitting ? <LoaderCircle className="animate-spin mr-2" /> : <ArrowRight className="mr-2" />}
               Valider
             </Button>
           </form>
@@ -397,5 +395,3 @@ export function GameClient() {
     </div>
   );
 }
-
-    

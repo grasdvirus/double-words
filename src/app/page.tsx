@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { FloatingLettersBackground } from '@/components/floating-letters-background';
-import { Play, Trophy, BookOpen, Settings, UserPlus, LogIn } from 'lucide-react';
+import { Trophy, Swords, BookOpen, Settings, UserPlus, LogIn, Users, Calendar, GraduationCap } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithGoogle } from '@/firebase/auth';
@@ -25,11 +25,11 @@ export default function Home() {
         </p>
 
         {!user && (
-           <Alert className="mb-8 text-left max-w-md">
+           <Alert className="mb-8 text-left max-w-md mx-auto animate-fade-in-up [animation-delay:0.2s]">
             <UserPlus className="h-4 w-4" />
             <AlertTitle>Connectez-vous !</AlertTitle>
             <AlertDescription className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span>Votre score n'apparaîtra pas dans le classement si vous jouez en tant qu'anonyme.</span>
+              <span>Votre score n'apparaîtra pas dans le classement.</span>
               <Button size="sm" onClick={() => auth && signInWithGoogle(auth)} className="flex-shrink-0">
                 <LogIn className="mr-2 h-4 w-4" />
                 Connexion
@@ -38,31 +38,56 @@ export default function Home() {
           </Alert>
         )}
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button asChild size="lg" className="w-full sm:w-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-2xl mx-auto animate-fade-in-up [animation-delay:0.4s]">
+          <Button asChild size="lg" className="w-full">
             <Link href="/play">
-              <Play className="mr-2" />
-              Jouer
+              <Trophy className="mr-2" />
+              Mode Défi
             </Link>
           </Button>
-          <div className="flex gap-2">
-            <Button asChild variant="secondary" size="icon">
+          <Button asChild size="lg" variant="secondary" className="w-full">
+            <Link href="/play">
+              <Swords className="mr-2" />
+              Entraînement
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="secondary" className="w-full">
+            <Link href="#">
+              <Users className="mr-2" />
+              Duel (2J)
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="secondary" className="w-full sm:col-span-1 lg:col-auto">
+            <Link href="#">
+              <Calendar className="mr-2" />
+              Tournois
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="secondary" className="w-full sm:col-span-2 lg:col-span-1">
+            <Link href="#">
+              <GraduationCap className="mr-2" />
+              Apprentissage
+            </Link>
+          </Button>
+        </div>
+
+        <div className="flex justify-center gap-2 mt-4 animate-fade-in-up [animation-delay:0.6s]">
+            <Button asChild variant="ghost" size="icon">
               <Link href="/rules" aria-label="Règles du jeu">
                 <BookOpen />
               </Link>
             </Button>
-            <Button asChild variant="secondary" size="icon">
+            <Button asChild variant="ghost" size="icon">
               <Link href="/leaderboard" aria-label="Classement">
                 <Trophy />
               </Link>
             </Button>
-            <Button asChild variant="secondary" size="icon">
+            <Button asChild variant="ghost" size="icon">
               <Link href="/settings" aria-label="Paramètres">
                 <Settings />
               </Link>
             </Button>
           </div>
-        </div>
       </div>
     </div>
   );
