@@ -175,8 +175,8 @@ export function GameClient() {
     if (user && firestore && score > 0) {
       const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
       setDocumentNonBlocking(leaderboardRef, {
-        displayName: user.displayName,
-        photoURL: user.photoURL,
+        displayName: user.displayName || "Joueur anonyme",
+        photoURL: user.photoURL || "",
         score: score,
         updatedAt: serverTimestamp(),
       }, { merge: true });
@@ -403,6 +403,8 @@ export function GameClient() {
     </div>
   );
 }
+
+    
 
     
 
