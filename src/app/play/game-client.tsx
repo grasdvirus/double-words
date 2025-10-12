@@ -39,6 +39,14 @@ const generateRandomChallenge = () => {
     return (char1 + char2).toLowerCase();
 }
 
+interface LevelData {
+  challenge: string;
+  description: string;
+  solutionWord: string;
+  hint: string;
+  jumbledLetters: string[];
+}
+
 export function GameClient() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -48,13 +56,12 @@ export function GameClient() {
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [showTimeUp, setShowTimeUp] = useState(false);
   const [lastRoundPoints, setLastRoundPoints] = useState({ points: 0, bonus: 0 });
-  const [solutionWord, setSolutionWord] = useState('');
-  const [hint, setHint] = useState('');
-  const [jumbledLetters, setJumbledLetters] = useState<string[]>([]);
+  
+  const [currentLevelData, setCurrentLevelData] = useState<LevelData | null>(null);
+  const [nextLevelData, setNextLevelData] = useState<LevelData | null>(null);
+
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
-  const [currentChallenge, setCurrentChallenge] = useState("");
-  const [currentDescription, setCurrentDescription] = useState("");
   const [isWrong, setIsWrong] = useState(false);
   const [scoreKey, setScoreKey] = useState(0);
   const [levelKey, setLevelKey] = useState(0);
@@ -100,14 +107,8 @@ export function GameClient() {
     timerRef.current = requestAnimationFrame(animate);
   }, [stopTimer, handleTimeUp]);
   
-  const generateLevel = useCallback(async (isRetry = false) => {
-    setIsSubmitting(true);
-    setInputValue("");
-    setDisabledLetterIndexes([]);
-    setShowLevelComplete(false);
-    setShowTimeUp(false);
-    
-    const predefinedLevel = gameLevels.find(l => l.level === level);
+  const prepareLevelData = useCallback(async (forLevel: number): Promise<LevelData | null> => {
+    const predefinedLevel = gameLevels.find(l => l.level === forLevel);
     let challenge, description, solution;
 
     if (predefinedLevel) {
@@ -119,9 +120,6 @@ export function GameClient() {
         description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
         solution = undefined; 
     }
-    
-    setCurrentChallenge(challenge);
-    setCurrentDescription(description);
 
     try {
       const result = await evaluateAnswer({
@@ -132,13 +130,11 @@ export function GameClient() {
         solutionWord: solution,
       });
       const word = result.solutionWord.toUpperCase();
-      setSolutionWord(word);
-      setHint(result.hint);
 
       const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
       const solutionLetters = word.split('');
       const extraLetters: string[] = [];
-      while (extraLetters.length < 4) {
+      while (extraLetters.length < Math.max(4, 12 - solutionLetters.length)) {
         const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
         if (!solutionLetters.includes(randomLetter)) {
           extraLetters.push(randomLetter);
@@ -146,29 +142,53 @@ export function GameClient() {
       }
       
       const allLetters = shuffle([...solutionLetters, ...extraLetters]);
-      setJumbledLetters(allLetters);
-      setDisabledLetterIndexes(new Array(allLetters.length).fill(false));
+      
+      return {
+        challenge,
+        description,
+        solutionWord: word,
+        hint: result.hint,
+        jumbledLetters: allLetters,
+      };
+
     } catch(e) {
         toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
-    } finally {
-        setIsSubmitting(false);
-        if (!isRetry) {
-          startTimer();
-        }
+        return null;
     }
-  }, [settings.language, toast, startTimer, level]);
+  }, [settings.language, toast]);
+
+  const setupLevel = useCallback((data: LevelData | null, isRetry = false) => {
+    if (!data) return;
+
+    setCurrentLevelData(data);
+    setInputValue("");
+    setDisabledLetterIndexes(new Array(data.jumbledLetters.length).fill(false));
+    setShowLevelComplete(false);
+    setShowTimeUp(false);
+    
+    if (!isRetry) {
+      startTimer();
+    }
+    
+    // Pre-fetch next level data
+    prepareLevelData(level + 1).then(setNextLevelData);
+
+  }, [startTimer, level, prepareLevelData]);
 
 
   useEffect(() => {
-    // Generate the level only on the client-side to avoid hydration errors
-    generateLevel(false).then(() => {
-      setIsInitialLoading(false);
-    });
+    if (isInitialLoading) {
+        prepareLevelData(level).then(data => {
+            setupLevel(data);
+            setIsInitialLoading(false);
+        });
+    }
+
     return () => {
       stopTimer();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [level, settings.language]); 
+  }, []); 
 
 
   useEffect(() => {
@@ -189,7 +209,7 @@ export function GameClient() {
   }, [level]);
 
   const handleKeyPress = (key: string, index: number) => {
-    if (inputValue.length >= solutionWord.length || showTimeUp) return;
+    if (!currentLevelData || inputValue.length >= currentLevelData.solutionWord.length || showTimeUp) return;
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -199,14 +219,14 @@ export function GameClient() {
   };
   
   const handleBackspace = () => {
-     if (inputValue.length === 0 || showTimeUp) return;
+     if (inputValue.length === 0 || showTimeUp || !currentLevelData) return;
     
     const lastChar = inputValue[inputValue.length - 1];
     setInputValue((prev) => prev.slice(0, -1));
 
     let reEnabled = false;
     for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
-        if(jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
+        if(currentLevelData.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
             setDisabledLetterIndexes(prev => {
                 const newDisabled = [...prev];
                 newDisabled[i] = false;
@@ -218,10 +238,10 @@ export function GameClient() {
   };
 
   const showHint = () => {
-    if (hint && !showTimeUp) {
+    if (currentLevelData?.hint && !showTimeUp) {
       toast({
         title: "Indice",
-        description: hint,
+        description: currentLevelData.hint,
       });
       updateScore(-2); // Penalize for using hint
     }
@@ -229,18 +249,20 @@ export function GameClient() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isSubmitting || showTimeUp || showLevelComplete) return;
+    if (!inputValue.trim() || isSubmitting || showTimeUp || showLevelComplete || !currentLevelData) return;
 
     setIsSubmitting(true);
     const cleanedInput = inputValue.trim();
 
-    if (cleanedInput.toUpperCase() !== solutionWord) {
+    if (cleanedInput.toUpperCase() !== currentLevelData.solutionWord) {
       updateScore(-5);
       setIsWrong(true);
       setTimeout(() => {
         setIsWrong(false);
         setInputValue("");
-        setDisabledLetterIndexes(new Array(jumbledLetters.length).fill(false));
+        if(currentLevelData) {
+            setDisabledLetterIndexes(new Array(currentLevelData.jumbledLetters.length).fill(false));
+        }
       }, 800);
       setTimeout(() => {
         setIsSubmitting(false);
@@ -276,18 +298,39 @@ export function GameClient() {
   const handleNextLevel = () => {
     nextLevel();
     setShowLevelComplete(false);
+    if (nextLevelData) {
+        setupLevel(nextLevelData);
+        setNextLevelData(null); // Clear after use
+    } else {
+        // Fallback if pre-fetching failed or wasn't ready
+        setIsInitialLoading(true);
+        prepareLevelData(level + 1).then(data => {
+            setupLevel(data);
+            setIsInitialLoading(false);
+        });
+    }
   };
 
   const handleRetry = () => {
     setShowTimeUp(false);
-    generateLevel(true);
+    // Use the pre-fetched data for the *next* level as a new attempt
+    if (nextLevelData) {
+        setupLevel(nextLevelData, true); 
+        setNextLevelData(null);
+    } else {
+        setIsInitialLoading(true);
+        prepareLevelData(level).then(data => {
+            setupLevel(data, true);
+            setIsInitialLoading(false);
+        });
+    }
     startTimer();
   };
   
   const progressPercentage = Math.min(100, (level / 10) * 100);
   
   const renderInputBoxes = () => {
-    if (isInitialLoading || !solutionWord) {
+    if (isInitialLoading || !currentLevelData) {
       return (
         <div className="flex justify-center items-center gap-2 flex-wrap min-h-14">
           <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
@@ -298,7 +341,7 @@ export function GameClient() {
     return (
       <div className="relative min-h-14">
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
-          {Array.from({ length: solutionWord.length }).map((_, i) => {
+          {Array.from({ length: currentLevelData.solutionWord.length }).map((_, i) => {
             const char = inputValue[i] || '';
             return (
               <div
@@ -349,7 +392,7 @@ export function GameClient() {
               </div>
             </div>
             <CardTitle className="text-2xl font-semibold">
-              Défi : {currentDescription}
+              Défi : {currentLevelData?.description}
             </CardTitle>
             <Progress value={progressPercentage} className="w-full mt-4" />
           </CardHeader>
@@ -371,16 +414,16 @@ export function GameClient() {
                 </Button>
             </div>
 
-            {jumbledLetters.length === 0 ? (
+            {currentLevelData?.jumbledLetters.length === 0 ? (
                 <div className="flex justify-center items-center p-8">
                     <LoaderCircle className="animate-spin h-10 w-10 text-primary" />
                 </div>
             ) : (
-                <LetterGrid letters={jumbledLetters} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp || showLevelComplete} />
+                <LetterGrid letters={currentLevelData?.jumbledLetters || []} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp || showLevelComplete} />
             )}
 
-             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || inputValue.length !== solutionWord.length || showTimeUp || showLevelComplete}>
-              {isSubmitting && <LoaderCircle className="animate-spin mr-2" />}
+             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentLevelData || inputValue.length !== currentLevelData.solutionWord.length || showTimeUp || showLevelComplete}>
+              {(isSubmitting || !currentLevelData) && <LoaderCircle className="animate-spin mr-2" />}
               <ArrowRight className="mr-2" />
               Valider
             </Button>
@@ -398,14 +441,10 @@ export function GameClient() {
       <TimeUpDialog 
         isOpen={showTimeUp}
         onRetry={handleRetry}
-        solution={solutionWord}
+        solution={currentLevelData?.solutionWord || ""}
       />
     </div>
   );
 }
-
-    
-
-    
 
     
