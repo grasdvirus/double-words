@@ -18,6 +18,7 @@ import {
 import { useUser, useAuth } from "@/firebase";
 import { signInWithGoogle, signOut } from "@/firebase/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { href: "/play", label: "Jouer", icon: Swords },
@@ -29,12 +30,28 @@ const navItems = [
 function AuthButton() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const { toast } = useToast();
 
-  const handleSignIn = () => {
+
+  const handleSignIn = async () => {
     if (auth) {
-      signInWithGoogle(auth);
+      try {
+        await signInWithGoogle(auth);
+      } catch (error: any) {
+        console.error("Erreur de connexion Google :", error);
+        toast({
+          variant: "destructive",
+          title: "Erreur de connexion",
+          description: "Impossible de se connecter avec Google. Veuillez réessayer.",
+        });
+      }
     } else {
       console.error("L'instance d'authentification Firebase n'est pas prête.");
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Le service d'authentification n'est pas disponible.",
+      });
     }
   };
 
