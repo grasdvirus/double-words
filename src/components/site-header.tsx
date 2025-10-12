@@ -147,43 +147,6 @@ export function SiteHeader() {
             )}
             <AuthButton />
         
-            {/* Mobile Navigation */}
-            <div className="flex items-center md:hidden">
-            <Sheet>
-                <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                    <Menu className="h-6 w-6" />
-                    <span className="sr-only">Ouvrir le menu</span>
-                </Button>
-                </SheetTrigger>
-                <SheetContent side="right">
-                <SheetHeader className="text-left">
-                    <SheetTitle>Menu</SheetTitle>
-                    <SheetDescription>
-                    Naviguez à travers les différentes sections du jeu.
-                    </SheetDescription>
-                </SheetHeader>
-                <nav className="flex flex-col gap-4 mt-8">
-                    {navItems.map((item) => (
-                    <SheetClose asChild key={item.href}>
-                        <Link
-                        href={item.href}
-                        className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-lg font-medium",
-                            pathname === item.href
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                        >
-                        <item.icon className="h-5 w-5" />
-                        {item.label}
-                        </Link>
-                    </SheetClose>
-                    ))}
-                </nav>
-                </SheetContent>
-            </Sheet>
-            </div>
         </div>
       </div>
     </header>
