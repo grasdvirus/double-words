@@ -4,13 +4,13 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { FloatingLettersBackground } from '@/components/floating-letters-background';
-import { Trophy, Swords, BookOpen, Settings, UserPlus, LogIn, Users, Calendar, GraduationCap } from 'lucide-react';
+import { Trophy, Swords, BookOpen, Settings, UserPlus, LogIn, Users, Calendar, GraduationCap, LoaderCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithGoogle } from '@/firebase/auth';
 
 export default function Home() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
 
   const handleSignIn = () => {
@@ -32,7 +32,7 @@ export default function Home() {
           Le jeu où les lettres se répètent, mais jamais les idées.
         </p>
 
-        {!user && (
+        {!user && !isUserLoading && (
            <Alert className="mb-8 text-left max-w-md mx-auto animate-fade-in-up [animation-delay:0.2s]">
             <UserPlus className="h-4 w-4" />
             <AlertTitle>Connectez-vous !</AlertTitle>
@@ -44,6 +44,12 @@ export default function Home() {
               </Button>
             </AlertDescription>
           </Alert>
+        )}
+        
+        {isUserLoading && (
+          <div className="mb-8 flex justify-center">
+            <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
+          </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-2xl mx-auto animate-fade-in-up [animation-delay:0.4s]">
