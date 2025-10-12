@@ -93,12 +93,6 @@ export default function Home() {
               Tournois
             </Link>
           </Button>
-          <Button asChild size="lg" variant="secondary" className="w-full sm:col-span-2 lg:col-span-1">
-            <Link href="#">
-              <GraduationCap className="mr-2" />
-              Apprentissage
-            </Link>
-          </Button>
         </div>
 
         <div className="flex justify-center gap-2 mt-4 animate-fade-in-up [animation-delay:0.6s]">
