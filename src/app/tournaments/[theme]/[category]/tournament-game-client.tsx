@@ -17,6 +17,7 @@ import { getTournamentLevel, getTournamentMaxLevel, TournamentLevel } from "@/li
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useNotification } from "@/contexts/notification-context";
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -66,6 +67,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   const levelStartTimeRef = useRef<number | null>(null);
 
   const { toast } = useToast();
+  const { showNotification } = useNotification();
   
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -154,7 +156,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
       setMaxLevel(max);
       setupLevel(level);
     } else {
-      toast({ variant: "destructive", title: "Erreur", description: "Ce tournoi n'existe pas." });
+      showNotification({ title: "Erreur", message: "Ce tournoi n'existe pas.", type: 'error'});
     }
     setIsInitialLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps

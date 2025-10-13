@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { useNotification } from '@/contexts/notification-context';
 
 
 function generateGameCode(): string {
@@ -29,6 +30,7 @@ export default function CreateDuelPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const { showNotification } = useNotification();
   
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [duelId, setDuelId] = useState<string | null>(null);
@@ -37,10 +39,10 @@ export default function CreateDuelPage() {
   useEffect(() => {
     if (isUserLoading || !firestore) return;
     if (!user) {
-      toast({
-        variant: 'destructive',
+      showNotification({
         title: 'Connexion requise',
-        description: 'Vous devez être connecté pour créer un duel.',
+        message: 'Vous devez être connecté pour créer un duel.',
+        type: 'error'
       });
       router.push('/duel');
       return;
@@ -77,11 +79,10 @@ export default function CreateDuelPage() {
             });
             errorEmitter.emit('permission-error', permissionError);
             
-            // Fallback user notification
-            toast({
-              variant: 'destructive',
+            showNotification({
               title: 'Erreur de permission',
-              description: 'Impossible de créer la partie. Vérifiez vos permissions.',
+              message: 'Impossible de créer la partie. Vérifiez vos permissions.',
+              type: 'error'
             });
             await new Promise(resolve => setTimeout(resolve, 2000));
             router.push('/duel');
@@ -92,7 +93,7 @@ export default function CreateDuelPage() {
         createDuel();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isUserLoading, firestore, router, toast]);
+  }, [user, isUserLoading, firestore, router]);
 
   useEffect(() => {
     if (!duelId || !firestore) return;

@@ -18,6 +18,7 @@ import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { gameLevels } from "@/lib/game-levels";
+import { useNotification } from "@/contexts/notification-context";
 
 
 const LEVEL_TIME = 60; // 60 seconds per level
@@ -72,6 +73,7 @@ export function GameClient() {
   const levelStartTimeRef = useRef<number | null>(null);
 
   const { toast } = useToast();
+  const { showNotification } = useNotification();
   
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -152,10 +154,10 @@ export function GameClient() {
       };
 
     } catch(e) {
-        toast({ variant: "destructive", title: "Erreur", description: "Impossible de générer le niveau."});
+        showNotification({ title: "Erreur", message: "Impossible de générer le niveau.", type: 'error'});
         return null;
     }
-  }, [settings.language, toast]);
+  }, [settings.language, showNotification]);
 
   const setupLevel = useCallback((data: LevelData | null, isRetry = false) => {
     if (!data) return;

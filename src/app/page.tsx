@@ -8,20 +8,20 @@ import { Trophy, Swords, BookOpen, Settings, UserPlus, LogIn, Users, Calendar } 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithGoogle } from '@/firebase/auth';
-import { useToast } from '@/hooks/use-toast';
+import { useNotification } from '@/contexts/notification-context';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
-  const { toast } = useToast();
+  const { showNotification } = useNotification();
 
   const handleSignIn = async () => {
     if (!auth) {
       console.error("L'instance d'authentification Firebase n'est pas prête.");
-      toast({
-        variant: "destructive",
+      showNotification({
         title: "Erreur",
-        description: "Le service d'authentification n'est pas disponible.",
+        message: "Le service d'authentification n'est pas disponible.",
+        type: 'error'
       });
       return;
     }
@@ -30,10 +30,10 @@ export default function Home() {
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
       if (error.code !== 'auth/popup-closed-by-user') {
-        toast({
-          variant: "destructive",
+        showNotification({
           title: "Erreur de connexion",
-          description: "Impossible de se connecter avec Google. Veuillez réessayer.",
+          message: "Impossible de se connecter avec Google. Veuillez réessayer.",
+          type: 'error'
         });
       }
     }

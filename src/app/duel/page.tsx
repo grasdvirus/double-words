@@ -9,34 +9,34 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowRight, Users, Gamepad, KeyRound, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser } from "@/firebase";
 import { collection, query, where, getDocs, updateDoc, doc, arrayUnion } from "firebase/firestore";
+import { useNotification } from "@/contexts/notification-context";
 
 
 export default function DuelLobbyPage() {
   const [joinCode, setJoinCode] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const router = useRouter();
-  const { toast } = useToast();
+  const { showNotification } = useNotification();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
 
   const handleJoinGame = async () => {
     if (!user) {
-      toast({
-        variant: "destructive",
+      showNotification({
         title: "Connexion requise",
-        description: "Vous devez être connecté pour rejoindre un duel.",
+        message: "Vous devez être connecté pour rejoindre un duel.",
+        type: 'error'
       });
       return;
     }
 
     if (!joinCode || joinCode.length !== 6) {
-      toast({
-        variant: "destructive",
+      showNotification({
         title: "Code invalide",
-        description: "Veuillez entrer un code de partie à 6 caractères.",
+        message: "Veuillez entrer un code de partie à 6 caractères.",
+        type: 'error'
       });
       return;
     }
@@ -53,10 +53,10 @@ export default function DuelLobbyPage() {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        toast({
-          variant: "destructive",
+        showNotification({
           title: "Partie non trouvée",
-          description: "Aucune partie en attente avec ce code. Vérifiez le code et réessayez.",
+          message: "Aucune partie en attente avec ce code. Vérifiez le code et réessayez.",
+          type: 'error'
         });
         setIsJoining(false);
         return;
@@ -66,20 +66,20 @@ export default function DuelLobbyPage() {
       const gameData = gameDoc.data();
 
       if (gameData.hostId === user.uid) {
-        toast({
-          variant: "destructive",
+        showNotification({
           title: "Impossible de rejoindre",
-          description: "Vous ne pouvez pas rejoindre votre propre partie.",
+          message: "Vous ne pouvez pas rejoindre votre propre partie.",
+          type: 'error'
         });
         setIsJoining(false);
         return;
       }
       
       if (gameData.players.length >= 2) {
-          toast({
-             variant: "destructive",
+          showNotification({
              title: "Partie complète",
-             description: "Cette partie a déjà deux joueurs.",
+             message: "Cette partie a déjà deux joueurs.",
+             type: 'error'
           });
           setIsJoining(false);
           return;
@@ -102,10 +102,10 @@ export default function DuelLobbyPage() {
 
     } catch (error) {
       console.error("Error joining duel:", error);
-      toast({
-        variant: "destructive",
+      showNotification({
         title: "Erreur",
-        description: "Une erreur est survenue en tentant de rejoindre la partie.",
+        message: "Une erreur est survenue en tentant de rejoindre la partie.",
+        type: 'error'
       });
       setIsJoining(false);
     }
