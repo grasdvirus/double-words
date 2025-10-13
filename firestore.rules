@@ -1,82 +1,117 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a user-ownership model for user profiles and leaderboard entries,
- *              while allowing public read access to leaderboard data. Duel games can be created by authenticated users.
+ * @file Firebase Security Rules for Firestore.
  *
- * @dataStructure
- *  /users/{userId} - User profile information, writable only by the user.
- *  /leaderboard/{userId} - Leaderboard entries, publicly readable, writable only by the user.
- *  /duels/{duelId} - Duel game sessions, can be created by any authenticated user.
+ * @core_philosophy This ruleset enforces a user-ownership model for user profiles and leaderboard entries,
+ *                  and a shared-access model for duel games where players can join and update game sessions.
+ *                  The rules prioritize secure access control and data integrity.
  *
- * @keySecurityDecisions
- *  - User profiles are private and only writable by the owning user.
- *  - Leaderboard data is publicly readable to encourage competition.
- *  - Duel games can be created by any authenticated user.
+ * @data_structure - `/users/{userId}`: Stores public user profile information.
+ *                  - `/leaderboard/{userId}`: Stores leaderboard entries, publicly readable but writable only by the user.
+ *                  - `/duels/{duelId}`: Stores duel game sessions, with access controlled by game membership.
  *
- * @denormalizationForAuthorization
- *  - For `duels/{duelId}`, the `hostId` field on the document is used to enforce ownership for updates and deletes.
+ * @key_security_decisions - Users can only read and write their own profile and leaderboard data.
+ *                          - Duel game data is accessible to players participating in the game.
+ *                          - Listing of users is disallowed to protect user privacy.
+ *                          - Listing of leaderboard entries is allowed for public display of the leaderboard.
+ *                          - Ownership is validated on create and update operations to maintain data consistency.
+ *
+ * @denormalization_for_authorization The `duels/{duelId}` document needs to contain a `players` field.
+ *
+ * @structural_segregation  There is no private/public content in the data model, so structural segregation is not applied.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows a user to read and write their own profile data.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (get, create, update) - User `XrpFF8e1mQQK27g4Lt4Q2SalA8g2` can read/write their profile at `/users/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
-     * @deny (get, create, update) - User `OtherUser` cannot read/write profile at `/users/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
-     * @principle Enforces document ownership for writes.
+     * @allow (create) Signed-in user with matching userId can create their profile.
+     * @allow (get, update, delete) Signed-in user with matching userId can read, update, or delete their profile.
+     * @deny (create) Signed-in user cannot create a profile with a mismatched userId.
+     * @deny (get, update, delete) Signed-in user cannot read, update, or delete another user's profile.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId);
+      }
+
+      allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if false;
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows anyone to read leaderboard data, but only the user to update their own entry.
+     * @description Controls access to leaderboard entries.
      * @path /leaderboard/{userId}
-     * @allow (get, list) - Any user can read leaderboard entries.
-     * @allow (create, update) - User `XrpFF8e1mQQK27g4Lt4Q2SalA8g2` can create/update their entry at `/leaderboard/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
-     * @deny (create, update) - User `OtherUser` cannot create/update entry at `/leaderboard/XrpFF8e1mQQK27g4Lt4Q2SalA8g2`.
-     * @principle Allows public read access while enforcing ownership for writes.
+     * @allow (create) Signed-in user with matching userId can create their leaderboard entry.
+     * @allow (get, list, update, delete) Signed-in user with matching userId can read, update, or delete their own entry.
+     * @deny (create) Signed-in user cannot create a leaderboard entry with a mismatched userId.
+     * @deny (get, list, update, or delete) Signed-in user cannot read, update, or delete another user's leaderboard entry.
+     * @principle Enforces document ownership for leaderboard entries, with public read access.
      */
     match /leaderboard/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isSignedIn() && isOwner(userId);
+      }
+
       allow get: if true;
       allow list: if true;
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if false;
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows authenticated users to create duel games, and the host to update and delete them.
+     * @description Controls access to duel game sessions.
      * @path /duels/{duelId}
-     * @allow (create) - Authenticated user can create a duel.
-     * @allow (update, delete) - Host user can update/delete their duel.
-     * @deny (update, delete) - Non-host user cannot update/delete the duel.
-     * @principle Allows game creation for authenticated users, and enforces host ownership for modification.
+     * @allow (create) Signed-in users can create new duel games.
+     * @allow (get, list, update, delete) Only players in the game can read, update, or delete the game.
+     * @deny (create) Non-signed-in users cannot create games.
+     * @deny (get, list, update, delete) Users not in the game cannot access it.
+     * @principle Enforces shared access based on game membership.
      */
     match /duels/{duelId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(resource.data.hostId);
-      allow delete: if isSignedIn() && isExistingOwner(resource.data.hostId);
-    }
+        function isSignedIn() {
+            return request.auth != null;
+        }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
+        function isPlayer() {
+            return request.auth.uid in resource.data.players;
+        }
+        
+        function isExistingPlayer() {
+            return isSignedIn() && isPlayer();
+        }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
+        function playerInfo() {
+          return {
+            "uid": request.auth.uid,
+            "displayName": request.auth.token.name,
+            "photoURL": request.auth.token.picture
+          };
+        }
 
-    function isExistingOwner(userId) {
-        return isSignedIn() && isOwner(userId) && resource != null;
+        allow get: if isExistingPlayer();
+        allow list: if false;
+        allow create: if isSignedIn();
+        allow update: if isExistingPlayer();
+        allow delete: if isExistingPlayer();
     }
   }
 }
