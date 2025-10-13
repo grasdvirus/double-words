@@ -10,6 +10,7 @@ import { useGame } from "@/hooks/use-game";
 import { ArrowLeft, Eraser } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { useRouter } from "next/navigation";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export default function SettingsPage() {
   const { settings, updateSettings, resetProgress } = useGame();
@@ -34,6 +35,16 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Thème</CardTitle>
+                <CardDescription>Choisissez votre apparence préférée.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <ThemeSwitcher />
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Jeu</CardTitle>
