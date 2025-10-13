@@ -180,18 +180,16 @@ export default function CreateDuelPage() {
                     ))}
                      {players.length < 2 && (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                           <div className="h-20 w-20 rounded-full border-2 border-dashed flex items-center justify-center p-2">
-                               <div className="section-center scale-[0.3] -translate-y-1/2 top-1/2">
-                                    <div className="section-path">
-                                        <div className="globe">
-                                        <div className="wrapper">
-                                            <span></span><span></span><span></span><span></span>
-                                            <span></span><span></span><span></span><span></span>
-                                            <span></span><span></span><span></span><span></span>
-                                            <span></span><span></span><span></span><span></span>
-                                        </div>
-                                        </div>
-                                    </div>
+                           <div className="h-20 w-20 rounded-full border-2 border-dashed flex items-center justify-center overflow-hidden">
+                                <div className="spinner scale-125">
+                                   <span></span>
+                                   <span></span>
+                                   <span></span>
+                                   <span></span>
+                                   <span></span>
+                                   <span></span>
+                                   <span></span>
+                                   <span></span>
                                 </div>
                            </div>
                            <p>En attente...</p>
