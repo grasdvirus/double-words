@@ -1,12 +1,15 @@
 
+
+'use client';
+
 import { SiteHeader } from "@/components/site-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, Medal, Users } from "lucide-react";
+import { ArrowRight, Medal, Users, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { tournamentData } from "@/lib/tournament-data";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 
 
 const ICONS: {[key: string]: React.ReactNode} = {
@@ -20,6 +23,7 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export default function TournamentThemePage({ params }: { params: { theme: string } }) {
   const { theme } = params;
   const themeData = tournamentData[theme];
+  const router = useRouter();
   
   if (!themeData) {
     notFound();
@@ -38,7 +42,15 @@ export default function TournamentThemePage({ params }: { params: { theme: strin
       <SiteHeader />
       <main className="flex-1">
         <div className="container py-8 max-w-4xl mx-auto animate-fade-in">
-          <div className="mb-8 text-center">
+          <div className="relative mb-8 text-center">
+            <Button 
+                variant="ghost" 
+                onClick={() => router.back()}
+                className="absolute left-0 top-1/2 -translate-y-1/2 animate-fade-in-up"
+            >
+                <ArrowLeft className="mr-2 h-4 w-4"/>
+                Retour
+            </Button>
             <Badge variant="secondary" className="text-lg mb-4">
               Tournoi
             </Badge>
@@ -69,14 +81,6 @@ export default function TournamentThemePage({ params }: { params: { theme: strin
                 </CardContent>
               </Card>
             ))}
-          </div>
-
-           <div className="text-center mt-12">
-            <Button variant="outline" asChild>
-              <Link href="/tournaments">
-                Retour aux thèmes
-              </Link>
-            </Button>
           </div>
         </div>
       </main>

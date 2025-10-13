@@ -2,7 +2,7 @@
 "use client";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/componentsui/card";
 import { Gem, Medal, Shield, Trophy } from "lucide-react";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
@@ -33,13 +33,7 @@ export function LeaderboardClient() {
   const { data: leaderboardData, isLoading } = useCollection<Player>(leaderboardQuery);
 
   return (
-    <div className="container py-8 max-w-4xl mx-auto">
-      <h1 className="text-4xl font-bold text-primary mb-8 text-center flex items-center justify-center gap-4">
-        <Trophy className="h-10 w-10" />
-        Classement
-      </h1>
-      
-      <Card>
+    <Card>
         <CardHeader>
           <CardTitle>Top 10 des Joueurs</CardTitle>
         </CardHeader>
@@ -99,6 +93,5 @@ export function LeaderboardClient() {
           )}
         </CardContent>
       </Card>
-    </div>
   );
 }

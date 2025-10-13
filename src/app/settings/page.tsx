@@ -7,18 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useGame } from "@/hooks/use-game";
-import { Eraser } from "lucide-react";
+import { ArrowLeft, Eraser } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const { settings, updateSettings, resetProgress } = useGame();
+  const router = useRouter();
 
   return (
     <div className="relative flex min-h-screen flex-col">
       <SiteHeader />
       <main className="flex-1">
         <div className="container py-8 max-w-2xl mx-auto animate-fade-in">
-          <h1 className="text-4xl font-bold text-primary mb-8 text-center">Paramètres</h1>
+          
+          <div className="relative mb-8 text-center">
+            <Button 
+                variant="ghost" 
+                onClick={() => router.back()}
+                className="absolute left-0 top-1/2 -translate-y-1/2 animate-fade-in-up"
+            >
+                <ArrowLeft className="mr-2 h-4 w-4"/>
+                Retour
+            </Button>
+            <h1 className="text-4xl font-bold text-primary">Paramètres</h1>
+          </div>
 
           <div className="space-y-8">
             <Card>
