@@ -489,9 +489,8 @@ export function GameClient() {
         isOpen={showTimeUp}
         onRetry={handleRetry}
         solution={currentLevelData?.solutionWord || ""}
+        hint={currentLevelData?.hint || ""}
       />
     </div>
   );
 }
-
-    

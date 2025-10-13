@@ -16,9 +16,10 @@ interface TimeUpDialogProps {
   isOpen: boolean;
   onRetry: () => void;
   solution: string;
+  hint: string;
 }
 
-export function TimeUpDialog({ isOpen, onRetry, solution }: TimeUpDialogProps) {
+export function TimeUpDialog({ isOpen, onRetry, solution, hint }: TimeUpDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onRetry()}>
       <DialogContent className="sm:max-w-[425px]">
@@ -32,10 +33,18 @@ export function TimeUpDialog({ isOpen, onRetry, solution }: TimeUpDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">Le mot était</p>
-            <p className="text-4xl font-bold text-primary tracking-widest">{solution}</p>
-            <p className="text-sm text-destructive mt-2">-10 points</p>
+          <div className="text-center space-y-2">
+            <div>
+                <p className="text-sm text-muted-foreground">Le mot était</p>
+                <p className="text-4xl font-bold text-primary tracking-widest">{solution}</p>
+            </div>
+            {hint && (
+                <div>
+                    <p className="text-sm text-muted-foreground">Indice</p>
+                    <p className="text-sm italic">{hint}</p>
+                </div>
+            )}
+            <p className="text-sm text-destructive pt-2">-10 points</p>
           </div>
           <p className="text-center text-sm italic text-muted-foreground">
             "Mieux vaut tard que jamais, mais pas dans ce jeu !"
