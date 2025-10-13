@@ -2,7 +2,7 @@
 "use client";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/componentsui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Gem, Medal, Shield, Trophy } from "lucide-react";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
