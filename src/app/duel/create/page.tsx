@@ -69,21 +69,13 @@ export default function CreateDuelPage() {
             setGameCode(code);
             setDuelId(docRef.id);
         })
-        .catch(async (serverError) => {
+        .catch((serverError) => {
             const permissionError = new FirestorePermissionError({
                 path: duelsCollection.path,
                 operation: 'create',
                 requestResourceData: duelData,
             });
             errorEmitter.emit('permission-error', permissionError);
-            
-            showNotification({
-              title: 'Erreur de permission',
-              message: 'Impossible de créer la partie. Vérifiez vos permissions.',
-              type: 'error'
-            });
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            router.push('/duel');
         });
     };
 
@@ -91,7 +83,7 @@ export default function CreateDuelPage() {
         createDuel();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isUserLoading, firestore, router]);
+  }, [user, isUserLoading, firestore, router, duelId]);
 
   useEffect(() => {
     if (!duelId || !firestore) return;
@@ -104,6 +96,12 @@ export default function CreateDuelPage() {
            router.push(`/duel/play/${duelId}`);
         }
       }
+    }, (err) => {
+        const permissionError = new FirestorePermissionError({
+            path: `duels/${duelId}`,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     });
 
     return () => unsub();

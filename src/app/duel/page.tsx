@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { useFirestore, useUser } from "@/firebase";
 import { collection, query, where, getDocs, updateDoc, doc, arrayUnion } from "firebase/firestore";
 import { useNotification } from "@/contexts/notification-context";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter } from "@/firebase/error-emitter";
 
 
 export default function DuelLobbyPage() {
@@ -43,13 +45,13 @@ export default function DuelLobbyPage() {
 
     setIsJoining(true);
 
+    const q = query(
+      collection(firestore, "duels"),
+      where("gameCode", "==", joinCode.toUpperCase()),
+      where("status", "==", "waiting")
+    );
+    
     try {
-      const q = query(
-        collection(firestore, "duels"),
-        where("gameCode", "==", joinCode.toUpperCase()),
-        where("status", "==", "waiting")
-      );
-      
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -85,29 +87,41 @@ export default function DuelLobbyPage() {
           return;
       }
 
-
       const player2 = {
         uid: user.uid,
         displayName: user.displayName || 'Anonyme',
         photoURL: user.photoURL || '',
       };
-
-      await updateDoc(doc(firestore, "duels", gameDoc.id), {
+      
+      const gameDocRef = doc(firestore, "duels", gameDoc.id);
+      const updateData = {
         players: arrayUnion(player2),
         status: 'active'
-      });
-      
-      // Redirection to the game page
+      };
+
+      await updateDoc(gameDocRef, updateData)
+        .catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: gameDocRef.path,
+                operation: 'update',
+                requestResourceData: updateData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            // We don't show a user-facing error here, as the listener will handle it.
+            setIsJoining(false);
+        });
+
+      // router.push is not awaited inside catch as it would prevent it from executing
       router.push(`/duel/play/${gameDoc.id}`);
 
     } catch (error) {
-      console.error("Error joining duel:", error);
-      showNotification({
-        title: "Erreur",
-        message: "Une erreur est survenue en tentant de rejoindre la partie.",
-        type: 'error'
-      });
-      setIsJoining(false);
+       // This will catch errors from getDocs
+       const permissionError = new FirestorePermissionError({
+            path: 'duels',
+            operation: 'list', // getDocs is a 'list' operation
+       });
+       errorEmitter.emit('permission-error', permissionError);
+       setIsJoining(false);
     }
   };
 
