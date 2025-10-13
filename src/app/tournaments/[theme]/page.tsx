@@ -1,7 +1,5 @@
 
 
-'use client';
-
 import { SiteHeader } from "@/components/site-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +7,7 @@ import Link from "next/link";
 import { ArrowRight, Medal, Users, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { tournamentData } from "@/lib/tournament-data";
-import { notFound, useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 
 
 const ICONS: {[key: string]: React.ReactNode} = {
@@ -23,7 +21,6 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export default function TournamentThemePage({ params }: { params: { theme: string } }) {
   const { theme } = params;
   const themeData = tournamentData[theme];
-  const router = useRouter();
   
   if (!themeData) {
     notFound();
@@ -45,11 +42,13 @@ export default function TournamentThemePage({ params }: { params: { theme: strin
           <div className="relative mb-8 text-center">
             <Button 
                 variant="ghost" 
-                onClick={() => router.back()}
+                asChild
                 className="absolute left-0 top-1/2 -translate-y-1/2 animate-fade-in-up"
             >
+              <Link href="/tournaments">
                 <ArrowLeft className="mr-2 h-4 w-4"/>
                 Retour
+              </Link>
             </Button>
             <Badge variant="secondary" className="text-lg mb-4">
               Tournoi
