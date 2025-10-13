@@ -1,17 +1,22 @@
+
 "use client";
 
 import React, { createContext, useState, useCallback, ReactNode, useContext } from 'react';
 
-interface NotificationState {
-  id: number;
+interface NotificationDetails {
   title: string;
   message: string;
   type: 'error' | 'success' | 'info';
+  duration?: 'persistent' | number;
+}
+
+interface NotificationState extends NotificationDetails {
+  id: number;
 }
 
 interface NotificationContextType {
   notification: NotificationState | null;
-  showNotification: (details: Omit<NotificationState, 'id'>) => void;
+  showNotification: (details: NotificationDetails) => void;
   hideNotification: () => void;
 }
 
@@ -29,7 +34,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [timeoutId]);
 
-  const showNotification = useCallback((details: Omit<NotificationState, 'id'>) => {
+  const showNotification = useCallback((details: NotificationDetails) => {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
@@ -37,11 +42,14 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const newId = Date.now();
     setNotification({ ...details, id: newId });
 
-    const newTimeoutId = setTimeout(() => {
-      hideNotification();
-    }, 5000); // Auto-dismiss after 5 seconds
+    const { duration = 5000 } = details;
 
-    setTimeoutId(newTimeoutId);
+    if (duration !== 'persistent') {
+      const newTimeoutId = setTimeout(() => {
+        hideNotification();
+      }, duration);
+      setTimeoutId(newTimeoutId);
+    }
   }, [hideNotification, timeoutId]);
 
   const value = {

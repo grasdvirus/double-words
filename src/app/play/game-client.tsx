@@ -71,7 +71,7 @@ export function GameClient() {
   const timerRef = useRef<number | null>(null);
   const levelStartTimeRef = useRef<number | null>(null);
 
-  const { showNotification } = useNotification();
+  const { showNotification, hideNotification, notification } = useNotification();
   
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -210,6 +210,9 @@ export function GameClient() {
 
   const handleKeyPress = (key: string, index: number) => {
     if (!currentLevelData || inputValue.length >= currentLevelData.solutionWord.length || showTimeUp) return;
+    if (notification?.type === 'info') {
+      hideNotification();
+    }
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -242,7 +245,8 @@ export function GameClient() {
       showNotification({
         title: "Indice",
         message: currentLevelData.hint,
-        type: 'info'
+        type: 'info',
+        duration: 'persistent',
       });
       updateScore(-2); // Penalize for using hint
     }
