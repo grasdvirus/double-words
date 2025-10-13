@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { errorEmitter, FirestorePermissionError } from '@/firebase/errors';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 
 function generateGameCode(): string {
@@ -68,7 +69,7 @@ export default function CreateDuelPage() {
             setGameCode(code);
             setDuelId(docRef.id);
         })
-        .catch(serverError => {
+        .catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
                 path: duelsCollection.path,
                 operation: 'create',
@@ -82,11 +83,14 @@ export default function CreateDuelPage() {
               title: 'Erreur de permission',
               description: 'Impossible de créer la partie. Vérifiez vos permissions.',
             });
+            await new Promise(resolve => setTimeout(resolve, 2000));
             router.push('/duel');
         });
     };
 
-    createDuel();
+    if (!duelId) {
+        createDuel();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isUserLoading, firestore, router, toast]);
 
@@ -97,9 +101,8 @@ export default function CreateDuelPage() {
       if (doc.exists()) {
         const data = doc.data();
         setPlayers(data.players || []);
-        if (data.status === 'active') {
-          // router.push(`/duel/play/${duelId}`);
-          console.log("Game is active, redirecting soon...");
+        if (data.status === 'active' && data.players.length === 2) {
+           router.push(`/duel/play/${duelId}`);
         }
       }
     });
