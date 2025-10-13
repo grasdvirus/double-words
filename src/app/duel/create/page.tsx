@@ -4,14 +4,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore';
-import { LoaderCircle, Users, Copy } from 'lucide-react';
+import { collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
+import { Users, Copy } from 'lucide-react';
 import { SiteHeader } from '@/components/site-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { errorEmitter, FirestorePermissionError } from '@/firebase';
+import { errorEmitter, FirestorePermissionError } from '@/firebase/errors';
 
 
 function generateGameCode(): string {
@@ -49,7 +49,7 @@ export default function CreateDuelPage() {
       const code = generateGameCode();
       const hostPlayer = {
         uid: user.uid,
-        displayName: user.displayName || 'Joueur 1',
+        displayName: user.displayName || 'Anonyme',
         photoURL: user.photoURL || '',
       };
       
@@ -120,9 +120,20 @@ export default function CreateDuelPage() {
   
   if (!gameCode) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg">Création de la partie...</p>
+      <div className="flex min-h-screen items-center justify-center flex-col gap-4">
+        <div className="section-center">
+            <div className="section-path">
+                <div className="globe">
+                <div className="wrapper">
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                </div>
+                </div>
+            </div>
+        </div>
+        <p className="text-lg">Création de la partie...</p>
       </div>
     );
   }
@@ -166,8 +177,19 @@ export default function CreateDuelPage() {
                     ))}
                      {players.length < 2 && (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                           <div className="h-20 w-20 rounded-full border-2 border-dashed flex items-center justify-center">
-                                <LoaderCircle className="h-8 w-8 animate-spin" />
+                           <div className="h-20 w-20 rounded-full border-2 border-dashed flex items-center justify-center p-2">
+                               <div className="section-center scale-[0.3] -translate-y-1/2 top-1/2">
+                                    <div className="section-path">
+                                        <div className="globe">
+                                        <div className="wrapper">
+                                            <span></span><span></span><span></span><span></span>
+                                            <span></span><span></span><span></span><span></span>
+                                            <span></span><span></span><span></span><span></span>
+                                            <span></span><span></span><span></span><span></span>
+                                        </div>
+                                        </div>
+                                    </div>
+                                </div>
                            </div>
                            <p>En attente...</p>
                         </div>

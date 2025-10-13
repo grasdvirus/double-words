@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { FloatingLettersBackground } from '@/components/floating-letters-background';
-import { Trophy, Swords, BookOpen, Settings, UserPlus, LogIn, Users, Calendar, GraduationCap, LoaderCircle } from 'lucide-react';
+import { Trophy, Swords, BookOpen, Settings, UserPlus, LogIn, Users, Calendar } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithGoogle } from '@/firebase/auth';
@@ -66,7 +66,18 @@ export default function Home() {
         
         {isUserLoading && (
           <div className="mb-8 flex justify-center">
-            <LoaderCircle className="h-8 w-8 animate-spin text-primary" />
+             <div className="section-center scale-50">
+                <div className="section-path">
+                    <div className="globe">
+                    <div className="wrapper">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    </div>
+                </div>
+            </div>
           </div>
         )}
 

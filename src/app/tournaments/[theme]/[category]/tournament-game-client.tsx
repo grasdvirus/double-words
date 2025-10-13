@@ -7,7 +7,7 @@ import { useGame } from "@/hooks/use-game";
 import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { TimeUpDialog } from "@/components/time-up-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, LoaderCircle, Undo2, Clock, Lightbulb } from "lucide-react";
+import { ArrowRight, Undo2, Clock, Lightbulb } from "lucide-react";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
@@ -266,7 +266,18 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     if (isInitialLoading || !currentLevelData) {
       return (
         <div className="flex justify-center items-center gap-2 flex-wrap min-h-[56px]">
-          <LoaderCircle className="animate-spin h-8 w-8 text-primary" />
+          <div className="section-center scale-50">
+              <div className="section-path">
+                  <div className="globe">
+                  <div className="wrapper">
+                      <span></span><span></span><span></span><span></span>
+                      <span></span><span></span><span></span><span></span>
+                      <span></span><span></span><span></span><span></span>
+                      <span></span><span></span><span></span><span></span>
+                  </div>
+                  </div>
+              </div>
+          </div>
         </div>
       );
     }
@@ -298,8 +309,19 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   if (isInitialLoading) {
     return (
       <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
-        <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-muted-foreground">Préparation du tournoi...</p>
+        <div className="section-center">
+            <div className="section-path">
+                <div className="globe">
+                <div className="wrapper">
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                </div>
+                </div>
+            </div>
+        </div>
+        <p className="mt-4 text-muted-foreground pt-24">Préparation du tournoi...</p>
       </div>
     )
   }
@@ -365,14 +387,38 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
 
             {currentLevelData?.jumbledLetters.length === 0 ? (
                 <div className="flex justify-center items-center p-8">
-                    <LoaderCircle className="animate-spin h-10 w-10 text-primary" />
+                    <div className="section-center scale-50">
+                        <div className="section-path">
+                            <div className="globe">
+                            <div className="wrapper">
+                                <span></span><span></span><span></span><span></span>
+                                <span></span><span></span><span></span><span></span>
+                                <span></span><span></span><span></span><span></span>
+                                <span></span><span></span><span></span><span></span>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 <LetterGrid letters={currentLevelData?.jumbledLetters || []} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp || showLevelComplete} />
             )}
 
              <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentLevelData || inputValue.length !== currentLevelData.solutionWord.length || showTimeUp || showLevelComplete}>
-              {isSubmitting && <LoaderCircle className="animate-spin mr-2" />}
+              {isSubmitting && (
+                <div className="section-center scale-50 -translate-y-8">
+                    <div className="section-path">
+                        <div className="globe">
+                        <div className="wrapper">
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+              )}
               <ArrowRight className="mr-2" />
               Valider
             </Button>

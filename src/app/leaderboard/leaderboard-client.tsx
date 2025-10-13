@@ -3,7 +3,7 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Gem, Medal, Shield, Trophy, LoaderCircle } from "lucide-react";
+import { Gem, Medal, Shield, Trophy } from "lucide-react";
 import { useCollection, useFirestore } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,8 +45,19 @@ export function LeaderboardClient() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <LoaderCircle className="h-12 w-12 animate-spin text-primary" />
+             <div className="flex justify-center items-center h-40">
+                <div className="section-center scale-50">
+                    <div className="section-path">
+                        <div className="globe">
+                        <div className="wrapper">
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span>
+                        </div>
+                        </div>
+                    </div>
+                </div>
             </div>
           ) : (
             <Table>
