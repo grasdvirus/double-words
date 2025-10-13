@@ -9,7 +9,6 @@ import { Users, Copy } from 'lucide-react';
 import { SiteHeader } from '@/components/site-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -29,7 +28,6 @@ export default function CreateDuelPage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
-  const { toast } = useToast();
   const { showNotification } = useNotification();
   
   const [gameCode, setGameCode] = useState<string | null>(null);
@@ -115,9 +113,10 @@ export default function CreateDuelPage() {
   const copyCode = () => {
     if (gameCode) {
       navigator.clipboard.writeText(gameCode);
-      toast({
+      showNotification({
         title: 'Copié !',
-        description: 'Le code de la partie a été copié dans le presse-papiers.',
+        message: 'Le code de la partie a été copié dans le presse-papiers.',
+        type: 'success'
       });
     }
   };

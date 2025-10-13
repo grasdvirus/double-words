@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGame } from "@/hooks/use-game";
 import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { TimeUpDialog } from "@/components/time-up-dialog";
-import { useToast } from "@/hooks/use-toast";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
 import { ArrowRight, Undo2, Clock, Lightbulb } from "lucide-react";
@@ -72,7 +71,6 @@ export function GameClient() {
   const timerRef = useRef<number | null>(null);
   const levelStartTimeRef = useRef<number | null>(null);
 
-  const { toast } = useToast();
   const { showNotification } = useNotification();
   
   const stopTimer = useCallback(() => {
@@ -241,9 +239,10 @@ export function GameClient() {
 
   const showHint = () => {
     if (currentLevelData?.hint && !showTimeUp) {
-      toast({
+      showNotification({
         title: "Indice",
-        description: currentLevelData.hint,
+        message: currentLevelData.hint,
+        type: 'info'
       });
       updateScore(-2); // Penalize for using hint
     }

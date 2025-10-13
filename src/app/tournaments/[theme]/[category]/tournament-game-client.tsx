@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useGame } from "@/hooks/use-game";
 import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { TimeUpDialog } from "@/components/time-up-dialog";
-import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, Undo2, Clock, Lightbulb } from "lucide-react";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
@@ -66,7 +65,6 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   const timerRef = useRef<number | null>(null);
   const levelStartTimeRef = useRef<number | null>(null);
 
-  const { toast } = useToast();
   const { showNotification } = useNotification();
   
   const stopTimer = useCallback(() => {
@@ -209,9 +207,10 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   };
 
   const showHint = () => {
-    toast({
+    showNotification({
       title: "Indice",
-      description: "Pas d'indice dans ce mode, vous êtes un pro !",
+      message: "Pas d'indice dans ce mode, vous êtes un pro !",
+      type: 'info',
     });
   };
 
