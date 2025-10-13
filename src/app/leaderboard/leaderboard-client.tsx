@@ -65,7 +65,7 @@ export function LeaderboardClient() {
                 <TableRow>
                   <TableHead className="w-[80px] text-center">Rang</TableHead>
                   <TableHead>Joueur</TableHead>
-                  <TableHead>Niveau</TableHead>
+                  <TableHead className="hidden md:table-cell">Niveau</TableHead>
                   <TableHead className="text-right">Score</TableHead>
                 </TableRow>
               </TableHeader>
@@ -84,7 +84,7 @@ export function LeaderboardClient() {
                           {player.displayName}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <div className="flex items-center gap-2">
                           {tier.icon}
                           {tier.name}
