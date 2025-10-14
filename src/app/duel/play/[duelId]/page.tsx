@@ -130,7 +130,20 @@ export default function DuelPlayPage() {
         clearInterval(interval);
         if (user?.uid === duelData.hostId && duelData.status === 'active') {
           const finalScores = duelData.playerScores;
-          const winnerId = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
+          const playerIds = Object.keys(finalScores);
+          let winnerId: string | null = null;
+          if (playerIds.length === 2) {
+              const score1 = finalScores[playerIds[0]];
+              const score2 = finalScores[playerIds[1]];
+              if (score1 > score2) {
+                  winnerId = playerIds[0];
+              } else if (score2 > score1) {
+                  winnerId = playerIds[1];
+              }
+          } else if (playerIds.length === 1) {
+            winnerId = playerIds[0];
+          }
+
           updateDoc(duelRef, { status: 'completed', winnerId, endedAt: serverTimestamp() });
         }
       }
@@ -149,19 +162,16 @@ export default function DuelPlayPage() {
 
   // Effect to handle player leaving
   useEffect(() => {
-    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         if (!duelData || !user || !duelRef || duelData.status !== 'active') return;
-
-        try {
-            const newStatus = {
-                status: 'abandoned',
-                winnerId: duelData.players.find((p: any) => p.uid !== user.uid)?.uid || null,
-                endedAt: serverTimestamp(),
-            };
-             await updateDoc(duelRef, newStatus);
-        } catch (error) {
-            console.error("Error handling player leaving:", error);
-        }
+        
+        // This is a best-effort attempt. It's not guaranteed to run.
+        // The real reliable logic is handled by onSnapshot detecting player count change.
+        updateDoc(duelRef, {
+            status: 'abandoned',
+            winnerId: otherPlayer?.uid || null,
+            endedAt: serverTimestamp(),
+        });
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -169,12 +179,13 @@ export default function DuelPlayPage() {
     return () => {
         window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-}, [duelId, user, duelData, duelRef]);
+}, [duelId, user, duelData, duelRef, otherPlayer]);
 
   useEffect(() => {
+    // This effect reliably detects if a player has left.
     if (duelRef && duelData?.status === 'active' && duelData.players.length < 2 && duelData.startedAt) {
       updateDoc(duelRef, {
-        status: 'completed',
+        status: 'abandoned', // Use a different status to distinguish from a normal finish
         winnerId: duelData.players.length > 0 ? duelData.players[0].uid : null,
         endedAt: serverTimestamp()
       });
@@ -204,39 +215,36 @@ export default function DuelPlayPage() {
 const handleBackspace = () => {
     if (inputValue.length === 0 || !currentChallenge || !currentChallenge.jumbledLetters) return;
 
-    const lastChar = inputValue[inputValue.length - 1];
-    const newInputValue = inputValue.slice(0, -1);
-    setInputValue(newInputValue);
+    const lastTypedChar = inputValue.slice(-1);
+    const lastTypedCharIndexInInput = inputValue.length - 1;
 
-    // Find the original grid index for the last character that was typed (not revealed)
-    // This is tricky. We need a way to track which input chars came from which grid index.
-    // For simplicity, we find the first available disabled letter in the grid that matches.
-    // This isn't perfect if there are duplicate letters, but it's a common approach.
+    // Check if the character being deleted was one revealed by the hint system.
+    // If it was, we just clear the input box but don't re-enable any letter in the grid.
+    if (revealedIndexes.includes(lastTypedCharIndexInInput)) {
+        setInputValue(inputValue.slice(0, -1));
+        return; // Don't proceed to re-enable a grid letter
+    }
 
-    const lastCharIndexInInput = newInputValue.length;
+    setInputValue(inputValue.slice(0, -1));
 
-    // If the character we're deleting was a revealed one, we don't re-enable any letter in the grid.
-    if (revealedIndexes.includes(lastCharIndexInInput)) {
-        return;
+    // Find the last used index in the grid for the character we're removing.
+    // This logic is complex with duplicate letters. A simpler but effective way
+    // is to find the first disabled letter that matches the one being removed and re-enable it.
+    // We search backwards to correctly handle duplicates added sequentially.
+    let indexToReEnable = -1;
+    for (let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
+        if (disabledLetterIndexes[i] && currentChallenge.jumbledLetters[i] === lastTypedChar) {
+            indexToReEnable = i;
+            break; // Found the most recently disabled matching letter
+        }
     }
     
-    let reEnabled = false;
-    // Iterate backwards to find the last disabled letter that matches
-    for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
-        if(currentChallenge.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
-             const isThisFromAReveal = revealedIndexes.some(revealedIndex => 
-                newInputValue[revealedIndex] === lastChar &&
-                // A complex check might be needed here if the grid has duplicates of the revealed letter
-                true
-             );
-
-            setDisabledLetterIndexes(prev => {
-                const newDisabled = [...prev];
-                newDisabled[i] = false;
-                return newDisabled;
-            });
-            reEnabled = true;
-        }
+    if (indexToReEnable !== -1) {
+        setDisabledLetterIndexes(prev => {
+            const newDisabled = [...prev];
+            newDisabled[indexToReEnable] = false;
+            return newDisabled;
+        });
     }
 };
 
@@ -272,14 +280,12 @@ const handleBackspace = () => {
         const letterToReveal = solution[indexToReveal];
     
         // Update input field
-        let newInputValueArray = inputValue.split('');
-        while(newInputValueArray.length < solution.length) newInputValueArray.push('');
+        let newInputValueArray = inputValue.padEnd(solution.length, ' ').split('');
         newInputValueArray[indexToReveal] = letterToReveal;
-        setInputValue(newInputValueArray.join(''));
+        setInputValue(newInputValueArray.join('').trimEnd());
         setRevealedIndexes(prev => [...prev, indexToReveal]);
     
         // Find and disable the corresponding letter in the jumbled grid
-        // Prioritize disabling a letter that is not already part of the user's correct input
         let gridIndexToDisable = -1;
         for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
             if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
@@ -385,7 +391,7 @@ const handleBackspace = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
-  if (duelData.status === 'completed' || duelData.status === 'abandoned' || timeLeft === 0) {
+  if (duelData.status === 'completed' || duelData.status === 'abandoned') {
     const winner = duelData.players.find(p => p.uid === duelData.winnerId);
     const isTie = !duelData.winnerId && myScore === opponentScore && duelData.status === 'completed';
     
@@ -411,8 +417,10 @@ const handleBackspace = () => {
                         <p className="font-bold text-3xl">{winner?.displayName}</p>
                     </div>
                 </>
-            ) : (
+            ) : duelData.status === 'abandoned' ? (
                  <p className="text-2xl my-8">{t('player_left_game')}</p>
+            ) : (
+                 <p className="text-2xl my-8">{t('game_over')}</p>
             )}
 
             <Card className="mt-8 w-full max-w-sm">
@@ -421,7 +429,7 @@ const handleBackspace = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                  {(duelData.players.length > 0 ? duelData.players : [me, otherPlayer].filter(Boolean)).map(p => (
-                   <div key={p.uid} className="flex justify-between items-center">
+                   p && <div key={p.uid} className="flex justify-between items-center">
                      <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
                             <AvatarImage src={p.photoURL} alt={p.displayName} />
@@ -434,12 +442,21 @@ const handleBackspace = () => {
                  ))}
                  {Object.keys(duelData.playerScores)
                     .filter(uid => !duelData.players.some(p => p.uid === uid) && (me?.uid === uid || otherPlayer?.uid === uid))
-                    .map(uid => (
-                      <div key={uid} className="flex justify-between items-center opacity-50">
-                          <span className="font-semibold italic">{t('disconnected_player')}</span>
-                          <span className="font-bold text-xl text-primary">{duelData.playerScores[uid] || 0}</span>
-                      </div>
-                    ))
+                    .map(uid => {
+                      const disconnectedPlayer = uid === me?.uid ? me : otherPlayer;
+                      return (
+                        <div key={uid} className="flex justify-between items-center opacity-50">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                  <AvatarImage src={disconnectedPlayer?.photoURL} alt={disconnectedPlayer?.displayName} />
+                                  <AvatarFallback>{disconnectedPlayer?.displayName?.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <span className="font-semibold italic">{disconnectedPlayer?.displayName || t('disconnected_player')}</span>
+                            </div>
+                            <span className="font-bold text-xl text-primary">{duelData.playerScores[uid] || 0}</span>
+                        </div>
+                      )
+                    })
                  }
               </CardContent>
             </Card>
@@ -560,3 +577,5 @@ const handleBackspace = () => {
     </div>
   );
 }
+
+    
