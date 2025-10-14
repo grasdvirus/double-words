@@ -112,28 +112,31 @@ export default function DuelPlayPage() {
   
   // Timer logic
   useEffect(() => {
-    if (duelData?.status === 'active' && duelData.startedAt && duelData.duration) {
-      const startTime = (duelData.startedAt as Timestamp).toDate().getTime();
-      const durationMillis = duelData.duration * 60 * 1000;
-      const endTime = startTime + durationMillis;
-
-      const interval = setInterval(() => {
-        const now = Date.now();
-        const remaining = Math.max(0, endTime - now);
-        setTimeLeft(remaining / 1000);
-
-        if (remaining === 0) {
-          clearInterval(interval);
-          if (user?.uid === duelData.hostId && duelData.status === 'active') {
-            const finalScores = duelData.playerScores;
-            const winnerId = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
-            updateDoc(duelRef, { status: 'completed', winnerId, endedAt: serverTimestamp() });
-          }
-        }
-      }, 1000);
-
-      return () => clearInterval(interval);
+    if (duelData?.status !== 'active' || !duelData.startedAt || !duelData.duration) {
+      setTimeLeft(duelData?.duration ? duelData.duration * 60 : null);
+      return;
     }
+  
+    const startTime = (duelData.startedAt as Timestamp).toDate().getTime();
+    const durationMillis = duelData.duration * 60 * 1000;
+    const endTime = startTime + durationMillis;
+  
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const remaining = Math.max(0, endTime - now);
+      setTimeLeft(remaining / 1000);
+  
+      if (remaining === 0) {
+        clearInterval(interval);
+        if (user?.uid === duelData.hostId && duelData.status === 'active') {
+          const finalScores = duelData.playerScores;
+          const winnerId = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
+          updateDoc(duelRef, { status: 'completed', winnerId, endedAt: serverTimestamp() });
+        }
+      }
+    }, 1000);
+  
+    return () => clearInterval(interval);
   }, [duelData, duelRef, user?.uid]);
 
 
@@ -233,7 +236,7 @@ export default function DuelPlayPage() {
             title: t('hint'),
             message: currentChallenge.hint,
             type: 'info',
-            duration: 5000,
+            duration: 'persistent',
           });
           const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 2);
           await updateDoc(duelRef, {
@@ -246,22 +249,28 @@ export default function DuelPlayPage() {
         if (!currentChallenge || !user || !duelRef || revealCount >= 3 || isRevealOnCooldown) return;
 
         const solution = currentChallenge.solutionWord;
-        let indexToReveal = -1;
-
-        // Find the first letter in the solution that hasn't been correctly guessed or revealed yet
+        
+        // Find all indexes that are not yet correct or revealed
+        const possibleIndexesToReveal = [];
         for (let i = 0; i < solution.length; i++) {
             if (inputValue[i] !== solution[i] && !revealedIndexes.includes(i)) {
-                indexToReveal = i;
-                break;
+                possibleIndexesToReveal.push(i);
             }
         }
 
-        if (indexToReveal === -1) return; // Word is already correct or fully revealed
+        if (possibleIndexesToReveal.length === 0) return; // Word is already correct or fully revealed
+
+        // Choose a random index from the possible ones
+        const indexToReveal = possibleIndexesToReveal[Math.floor(Math.random() * possibleIndexesToReveal.length)];
 
         const letterToReveal = solution[indexToReveal];
 
         // Create new input value
-        const newInputValue = inputValue.substring(0, indexToReveal) + letterToReveal + inputValue.substring(indexToReveal + 1);
+        let newInputValueArray = inputValue.split('');
+        while(newInputValueArray.length < solution.length) newInputValueArray.push('');
+        newInputValueArray[indexToReveal] = letterToReveal;
+        const newInputValue = newInputValueArray.join('');
+
         setInputValue(newInputValue);
         
         // Update revealed indexes
@@ -543,7 +552,3 @@ export default function DuelPlayPage() {
     </div>
   );
 }
-
-    
-
-    
