@@ -48,7 +48,7 @@ const generateDuelChallengePrompt = ai.definePrompt({
   Please perform the following steps:
   1.  Generate a new 'solutionWord'. This should be a single, common word or a very well-known phrase in the requested language ({{language}}), with a minimum length of 5 letters. It must NOT be in the list of existing words. Prioritize famous expressions, movie titles, or common knowledge. The word must be in UPPERCASE.
   2.  From the 'solutionWord', extract a 'challenge' which is a two-letter (2) substring from that word. For example, if the word is "BONJOUR", a valid challenge would be "ON", "BO", or "UR".
-  3.  Create a 'description' for the challenge. For example, if the challenge is "ON", the description should be 'Contient "on"'.
+  3.  Create a 'description' for the challenge in the requested language ({{language}}). For example, if the challenge is "ON", the french description should be 'Contient "on"'.
   4.  Generate a short, clever 'hint' for the 'solutionWord' in the requested language ({{language}}). The hint should be a definition, a clue, or a sentence that helps players guess the word.
 
   Return the complete challenge object.`,

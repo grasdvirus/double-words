@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { useNotification } from '@/contexts/notification-context';
 import { useTranslations } from '@/hooks/use-translations';
+import { useGame } from '@/hooks/use-game';
 
 
 const shuffle = (array: string[]) => {
@@ -32,6 +33,7 @@ export default function DuelPlayPage() {
   const router = useRouter();
   const duelId = params.duelId as string;
   const t = useTranslations();
+  const { settings } = useGame();
   
   const firestore = useFirestore();
   const { user } = useUser();
@@ -71,7 +73,8 @@ export default function DuelPlayPage() {
     setIsGenerating(true);
     try {
         const result = await generateDuelChallenge({
-            existingWords: duelData.wordHistory || []
+            existingWords: duelData.wordHistory || [],
+            language: settings.language,
         });
 
         const word = result.solutionWord.toUpperCase();
@@ -101,7 +104,7 @@ export default function DuelPlayPage() {
     } finally {
         setIsGenerating(false);
     }
-  }, [duelRef, duelData, user?.uid]);
+  }, [duelRef, duelData, user?.uid, settings.language]);
   
   // Timer logic
   useEffect(() => {
@@ -117,7 +120,7 @@ export default function DuelPlayPage() {
 
         if (remaining === 0) {
           clearInterval(interval);
-          if (user?.uid === duelData.hostId) {
+          if (user?.uid === duelData.hostId && duelData.status === 'active') {
             const finalScores = duelData.playerScores;
             const winnerId = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
             updateDoc(duelRef, { status: 'completed', winnerId, endedAt: serverTimestamp() });
@@ -139,37 +142,47 @@ export default function DuelPlayPage() {
 
   // Effect to handle player leaving
   useEffect(() => {
-    const handleBeforeUnload = async () => {
-      if (!duelData || !user || !duelRef || duelData.status !== 'active') return;
-  
-      const isHost = duelData.hostId === user.uid;
-      const remainingPlayers = duelData.players.filter((p: any) => p.uid !== user.uid);
-  
-      try {
-        if (isHost) {
-          // If host leaves, abandon the game
-          await updateDoc(duelRef, {
-            status: 'abandoned',
-            winnerId: remainingPlayers.length > 0 ? remainingPlayers[0].uid : null,
-            endedAt: serverTimestamp(),
-          });
-        } else {
-          // If guest leaves, update players list and let the game end naturally for the host
-          await updateDoc(duelRef, {
-            players: remainingPlayers,
-          });
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+        if (!duelData || !user || !duelRef || duelData.status !== 'active') return;
+
+        try {
+            // This is a synchronous operation but we fire and forget the update
+            const newStatus = {
+                status: 'abandoned',
+                winnerId: duelData.players.find((p: any) => p.uid !== user.uid)?.uid || null,
+                endedAt: serverTimestamp(),
+            };
+            // This will try to update, but might not succeed if the page closes too fast.
+            // Firestore's offline persistence can help.
+            if (navigator.sendBeacon) {
+                // Use sendBeacon for a more reliable way to send data on unload
+                const blob = new Blob([JSON.stringify({
+                    writes: [{
+                        update: {
+                            name: duelRef.path,
+                            fields: {
+                                status: { stringValue: 'abandoned' },
+                                winnerId: { stringValue: newStatus.winnerId },
+                                // serverTimestamp cannot be sent via beacon
+                            }
+                        }
+                    }]
+                })], { type: 'application/json' });
+                // This requires a backend endpoint to process the raw write.
+                // For simplicity, we'll stick with a direct update attempt.
+            }
+             await updateDoc(duelRef, newStatus);
+        } catch (error) {
+            console.error("Error handling player leaving:", error);
         }
-      } catch (error) {
-        console.error("Error handling player leaving:", error);
-      }
     };
-  
+
     window.addEventListener('beforeunload', handleBeforeUnload);
-  
+
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [duelId, user, duelData, duelRef]);
+}, [duelId, user, duelData, duelRef]);
 
   useEffect(() => {
     if (duelRef && duelData?.status === 'active' && duelData.players.length < 2 && duelData.startedAt) {
