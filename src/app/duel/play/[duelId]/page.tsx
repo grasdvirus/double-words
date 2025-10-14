@@ -222,33 +222,32 @@ const handleBackspace = () => {
     // Don't re-enable any letter in the grid.
     if (revealedInputIndexes.includes(lastCharIndex)) {
         setInputValue(prev => prev.slice(0, -1));
-        // Remove from revealed list if we backspace over it
-        setRevealedInputIndexes(prev => prev.filter(i => i !== lastCharIndex));
+        // We don't remove from revealedInputIndexes here, because backspacing over it
+        // doesn't "un-reveal" it. The user has to fill it in again.
         return;
     }
 
     setInputValue(prev => prev.slice(0, -1));
 
     // Find the corresponding letter in the jumbled grid to re-enable.
-    // This is tricky with duplicate letters. We need a reliable way to map
-    // input letters back to their grid origins.
-    // A simpler approach for now: find the first disabled letter that matches.
+    // This logic tries to find the last-used instance of a letter to re-enable.
     let indexToReEnable = -1;
-    // We search backwards to hopefully find the last one that was used.
-    for (let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
-        if (disabledLetterIndexes[i] && currentChallenge.jumbledLetters[i] === lastChar) {
-             const charInInputCount = inputValue.slice(0, -1).split('').filter(c => c === lastChar).length;
-             const disabledInGridCount = disabledLetterIndexes.slice(0, i).filter((d, idx) => d && currentChallenge.jumbledLetters[idx] === lastChar).length;
-            if (disabledInGridCount === charInInputCount) {
-                 indexToReEnable = i;
-                 break;
-            }
-        }
-    }
     
-    // Fallback if the smarter logic fails
-    if(indexToReEnable === -1) {
-        indexToReEnable = disabledLetterIndexes.findIndex((isDisabled, i) => isDisabled && currentChallenge.jumbledLetters[i] === lastChar);
+    // Count how many times the character appears in the remaining input
+    const charInInputCount = inputValue.slice(0, -1).split('').filter(c => c === lastChar).length;
+
+    // Count how many of that character are currently disabled in the grid
+    let disabledInGridCount = 0;
+    for (let i = 0; i < disabledLetterIndexes.length; i++) {
+        if (disabledLetterIndexes[i] && currentChallenge.jumbledLetters[i] === lastChar) {
+            // If we've found enough disabled characters to match what's left in the input,
+            // the next one we find is the one to re-enable.
+            if (disabledInGridCount === charInInputCount) {
+                indexToReEnable = i;
+                break;
+            }
+            disabledInGridCount++;
+        }
     }
 
     if (indexToReEnable !== -1) {
@@ -279,34 +278,46 @@ const handleBackspace = () => {
         if (!currentChallenge || !user || !duelRef || hasRevealed || isRevealOnCooldown) return;
     
         const solution = currentChallenge.solutionWord;
-        let possibleIndexesToReveal: number[] = [];
+        
+        // Find an index that is not yet correctly filled and not already revealed
+        const possibleIndexesToReveal: number[] = [];
         for (let i = 0; i < solution.length; i++) {
             if (inputValue[i] !== solution[i] && !revealedInputIndexes.includes(i)) {
                 possibleIndexesToReveal.push(i);
             }
         }
     
-        if (possibleIndexesToReveal.length === 0) return; // Already solved or fully revealed
+        if (possibleIndexesToReveal.length === 0) return; // Already solved or nothing to reveal
     
+        // Choose a random index to reveal from the possible ones
         const indexToReveal = possibleIndexesToReveal[Math.floor(Math.random() * possibleIndexesToReveal.length)];
         const letterToReveal = solution[indexToReveal];
     
-        // Temporarily pad the input to place the letter at the correct index
-        let newInputValueArray = inputValue.padEnd(solution.length, ' ').split('');
+        // Create an array representing the current input state
+        const newInputValueArray = inputValue.padEnd(solution.length, ' ').split('');
+        
+        // Place the revealed letter at the correct index
         newInputValueArray[indexToReveal] = letterToReveal;
+        
+        // Join back into a string, without trailing spaces
         const finalInputValue = newInputValueArray.join('').trimEnd();
 
         setInputValue(finalInputValue);
         setRevealedInputIndexes(prev => [...prev, indexToReveal]);
     
         // Find and disable the corresponding letter in the jumbled grid
-        // This part is complex with duplicates. A simple find might not work.
-        // We need to find a letter that hasn't been used yet for this reveal.
+        // This must be done carefully to handle duplicate letters
         let gridIndexToDisable = -1;
+        const usedByInput = (char: string) => finalInputValue.split(char).length - 1;
+        const disabledInGrid = (char: string) => disabledLetterIndexes.filter((d, i) => d && currentChallenge.jumbledLetters[i] === char).length;
+
         for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
             if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
-                gridIndexToDisable = i;
-                break;
+                // Find a letter in the grid that hasn't been "claimed" by the input yet
+                 if (disabledInGrid(letterToReveal) < usedByInput(letterToReveal)) {
+                    gridIndexToDisable = i;
+                    break;
+                 }
             }
         }
     
@@ -591,6 +602,8 @@ const handleBackspace = () => {
     </div>
   );
 }
+
+    
 
     
 
