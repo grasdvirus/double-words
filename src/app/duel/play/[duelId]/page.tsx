@@ -189,7 +189,7 @@ export default function DuelPlayPage() {
         timeTaken: Date.now() // Simple timestamp for now
     };
 
-    const newPoints = (duelData.playerScores[user.uid] || 0) + 10;
+    const newPoints = (duelData?.playerScores?.[user.uid] || 0) + 10;
 
     await updateDoc(duelRef, {
         [`rounds.${currentRoundIndex}.playerAnswers.${user.uid}`]: newAnswer,
@@ -263,7 +263,7 @@ export default function DuelPlayPage() {
 
   const renderPlayer = (player: any, isHost: boolean) => {
     if (!player) return <div className="w-1/3" />;
-    const score = duelData.playerScores[player.uid] || 0;
+    const score = duelData.playerScores?.[player.uid] || 0;
     const answerForRound = currentRound?.playerAnswers?.[player.uid];
     
     return (
