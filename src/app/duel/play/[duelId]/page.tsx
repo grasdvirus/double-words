@@ -132,6 +132,7 @@ export default function DuelPlayPage() {
           const finalScores = duelData.playerScores;
           const playerIds = Object.keys(finalScores);
           let winnerId: string | null = null;
+          
           if (playerIds.length === 2) {
               const score1 = finalScores[playerIds[0]];
               const score2 = finalScores[playerIds[1]];
@@ -139,6 +140,8 @@ export default function DuelPlayPage() {
                   winnerId = playerIds[0];
               } else if (score2 > score1) {
                   winnerId = playerIds[1];
+              } else {
+                  winnerId = null; // Tie
               }
           } else if (playerIds.length === 1) {
             winnerId = playerIds[0];
@@ -216,32 +219,31 @@ const handleBackspace = () => {
     if (inputValue.length === 0 || !currentChallenge || !currentChallenge.jumbledLetters) return;
 
     const lastCharIndex = inputValue.length - 1;
-    const lastChar = inputValue[lastCharIndex];
-
-    // If the character being deleted was revealed by a hint, just remove it from input.
-    // Don't re-enable any letter in the grid.
+    
+    // If the character being deleted was revealed by a hint, we prevent its letter
+    // in the grid from being re-enabled. So we just remove it from the input.
     if (revealedInputIndexes.includes(lastCharIndex)) {
         setInputValue(prev => prev.slice(0, -1));
-        // We don't remove from revealedInputIndexes here, because backspacing over it
-        // doesn't "un-reveal" it. The user has to fill it in again.
+        // We also need to remove it from the revealedInputIndexes so backspace works correctly
+        // on the new last character if it was also revealed.
+        setRevealedInputIndexes(prev => prev.filter(i => i !== lastCharIndex));
         return;
     }
-
+    
+    const lastChar = inputValue[lastCharIndex];
     setInputValue(prev => prev.slice(0, -1));
 
     // Find the corresponding letter in the jumbled grid to re-enable.
     // This logic tries to find the last-used instance of a letter to re-enable.
     let indexToReEnable = -1;
     
-    // Count how many times the character appears in the remaining input
+    // Count how many times the character appears in the *remaining* input
     const charInInputCount = inputValue.slice(0, -1).split('').filter(c => c === lastChar).length;
 
     // Count how many of that character are currently disabled in the grid
     let disabledInGridCount = 0;
     for (let i = 0; i < disabledLetterIndexes.length; i++) {
         if (disabledLetterIndexes[i] && currentChallenge.jumbledLetters[i] === lastChar) {
-            // If we've found enough disabled characters to match what's left in the input,
-            // the next one we find is the one to re-enable.
             if (disabledInGridCount === charInInputCount) {
                 indexToReEnable = i;
                 break;
@@ -278,49 +280,51 @@ const handleBackspace = () => {
         if (!currentChallenge || !user || !duelRef || hasRevealed || isRevealOnCooldown) return;
     
         const solution = currentChallenge.solutionWord;
-        
-        // Find an index that is not yet correctly filled and not already revealed
-        const possibleIndexesToReveal: number[] = [];
+        let indexToReveal = -1;
+    
+        // Find a random index that hasn't been filled correctly by the user yet
+        const possibleIndexes: number[] = [];
         for (let i = 0; i < solution.length; i++) {
-            if (inputValue[i] !== solution[i] && !revealedInputIndexes.includes(i)) {
-                possibleIndexesToReveal.push(i);
+            if (inputValue[i] !== solution[i]) {
+                possibleIndexes.push(i);
             }
         }
     
-        if (possibleIndexesToReveal.length === 0) return; // Already solved or nothing to reveal
+        if (possibleIndexes.length === 0) return; // Word is already correct
     
-        // Choose a random index to reveal from the possible ones
-        const indexToReveal = possibleIndexesToReveal[Math.floor(Math.random() * possibleIndexesToReveal.length)];
+        indexToReveal = possibleIndexes[Math.floor(Math.random() * possibleIndexes.length)];
         const letterToReveal = solution[indexToReveal];
     
-        // Create an array representing the current input state
-        const newInputValueArray = inputValue.padEnd(solution.length, ' ').split('');
-        
-        // Place the revealed letter at the correct index
-        newInputValueArray[indexToReveal] = letterToReveal;
-        
-        // Join back into a string, without trailing spaces
-        const finalInputValue = newInputValueArray.join('').trimEnd();
+        // Construct the new input value cleanly
+        const currentInputArray = inputValue.split('');
+        let finalInputArray = Array.from({ length: solution.length }, (_, i) => currentInputArray[i] || '');
+        finalInputArray[indexToReveal] = letterToReveal;
+    
+        // We only fill up to the revealed letter, preserving user's prior input
+        let finalInputValue = '';
+        for (let i=0; i<finalInputArray.length; i++) {
+            finalInputValue += finalInputArray[i] || ' ';
+        }
+        finalInputValue = finalInputValue.trimEnd();
 
         setInputValue(finalInputValue);
         setRevealedInputIndexes(prev => [...prev, indexToReveal]);
     
-        // Find and disable the corresponding letter in the jumbled grid
-        // This must be done carefully to handle duplicate letters
+        // Find an available letter in the grid to disable.
+        // This is tricky with duplicate letters.
         let gridIndexToDisable = -1;
-        const usedByInput = (char: string) => finalInputValue.split(char).length - 1;
-        const disabledInGrid = (char: string) => disabledLetterIndexes.filter((d, i) => d && currentChallenge.jumbledLetters[i] === char).length;
+        const disabledCountForLetter = disabledLetterIndexes.filter((d, i) => d && currentChallenge.jumbledLetters[i] === letterToReveal).length;
+        const inputCountForLetter = finalInputValue.split('').filter(c => c === letterToReveal).length;
 
-        for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
-            if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
-                // Find a letter in the grid that hasn't been "claimed" by the input yet
-                 if (disabledInGrid(letterToReveal) < usedByInput(letterToReveal)) {
+        if (inputCountForLetter > disabledCountForLetter) {
+            for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
+                if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
                     gridIndexToDisable = i;
                     break;
-                 }
+                }
             }
         }
-    
+
         if (gridIndexToDisable !== -1) {
             setDisabledLetterIndexes(prev => {
                 const newDisabled = [...prev];
@@ -328,7 +332,7 @@ const handleBackspace = () => {
                 return newDisabled;
             });
         }
-    
+        
         // Apply penalty and set flags
         const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 3);
         await updateDoc(duelRef, {
@@ -388,11 +392,11 @@ const handleBackspace = () => {
                 className={cn(
                     "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
                     "bg-card transition-all duration-300",
-                    inputValue[i] && "border-primary ring-2 ring-primary animate-pop-in",
+                    inputValue[i] && inputValue[i] !== ' ' && "border-primary ring-2 ring-primary animate-pop-in",
                     revealedInputIndexes.includes(i) && "border-accent ring-accent text-accent"
                 )}
             >
-                {inputValue[i] || ''}
+                {inputValue[i] === ' ' ? '' : inputValue[i]}
             </div>
           ))}
         </div>
@@ -421,7 +425,7 @@ const handleBackspace = () => {
 
   if (duelData.status === 'completed' || duelData.status === 'abandoned') {
     const winner = duelData.players.find(p => p.uid === duelData.winnerId);
-    const isTie = !duelData.winnerId && myScore === opponentScore && duelData.status === 'completed';
+    const isTie = duelData.winnerId === null && duelData.status === 'completed';
     
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center">
