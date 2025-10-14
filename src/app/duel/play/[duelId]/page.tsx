@@ -218,37 +218,33 @@ export default function DuelPlayPage() {
 const handleBackspace = () => {
     if (inputValue.length === 0 || !currentChallenge || !currentChallenge.jumbledLetters) return;
 
-    const lastCharIndex = inputValue.length - 1;
+    const lastCharIndexInInput = inputValue.length - 1;
+    const lastChar = inputValue[lastCharIndexInInput];
     
-    // If the character being deleted was revealed by a hint, we prevent its letter
-    // in the grid from being re-enabled. So we just remove it from the input.
-    if (revealedInputIndexes.includes(lastCharIndex)) {
+    // If the character being deleted was revealed, just remove it from input but don't re-enable any grid letter.
+    if (revealedInputIndexes.includes(lastCharIndexInInput)) {
         setInputValue(prev => prev.slice(0, -1));
-        // We also need to remove it from the revealedInputIndexes so backspace works correctly
-        // on the new last character if it was also revealed.
-        setRevealedInputIndexes(prev => prev.filter(i => i !== lastCharIndex));
         return;
     }
     
-    const lastChar = inputValue[lastCharIndex];
     setInputValue(prev => prev.slice(0, -1));
+    const newInputValue = inputValue.slice(0, -1);
 
-    // Find the corresponding letter in the jumbled grid to re-enable.
-    // This logic tries to find the last-used instance of a letter to re-enable.
+    // To re-enable the correct letter in the grid (especially with duplicates),
+    // we count how many of that character are now in the input, and how many are disabled in the grid.
+    const charCountInInput = newInputValue.split('').filter(c => c === lastChar).length;
+    let disabledCountInGrid = 0;
     let indexToReEnable = -1;
-    
-    // Count how many times the character appears in the *remaining* input
-    const charInInputCount = inputValue.slice(0, -1).split('').filter(c => c === lastChar).length;
 
-    // Count how many of that character are currently disabled in the grid
-    let disabledInGridCount = 0;
-    for (let i = 0; i < disabledLetterIndexes.length; i++) {
-        if (disabledLetterIndexes[i] && currentChallenge.jumbledLetters[i] === lastChar) {
-            if (disabledInGridCount === charInInputCount) {
+    // Find the Nth disabled button for this character, where N is the new count in the input.
+    for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
+        if (currentChallenge.jumbledLetters[i] === lastChar && disabledLetterIndexes[i]) {
+            // Check if this disabled instance is the one we should re-enable
+            if (disabledCountInGrid === charCountInInput) {
                 indexToReEnable = i;
                 break;
             }
-            disabledInGridCount++;
+            disabledCountInGrid++;
         }
     }
 
@@ -282,10 +278,10 @@ const handleBackspace = () => {
         const solution = currentChallenge.solutionWord;
         let indexToReveal = -1;
     
-        // Find a random index that hasn't been filled correctly by the user yet
+        // Find a random index that hasn't been correctly filled by the user yet and is not revealed
         const possibleIndexes: number[] = [];
         for (let i = 0; i < solution.length; i++) {
-            if (inputValue[i] !== solution[i]) {
+            if (inputValue[i] !== solution[i] && !revealedInputIndexes.includes(i)) {
                 possibleIndexes.push(i);
             }
         }
@@ -294,34 +290,20 @@ const handleBackspace = () => {
     
         indexToReveal = possibleIndexes[Math.floor(Math.random() * possibleIndexes.length)];
         const letterToReveal = solution[indexToReveal];
-    
-        // Construct the new input value cleanly
-        const currentInputArray = inputValue.split('');
-        let finalInputArray = Array.from({ length: solution.length }, (_, i) => currentInputArray[i] || '');
-        finalInputArray[indexToReveal] = letterToReveal;
-    
-        // We only fill up to the revealed letter, preserving user's prior input
-        let finalInputValue = '';
-        for (let i=0; i<finalInputArray.length; i++) {
-            finalInputValue += finalInputArray[i] || ' ';
-        }
-        finalInputValue = finalInputValue.trimEnd();
 
-        setInputValue(finalInputValue);
+        // Create the new input string by filling the revealed letter
+        const currentInputArray = inputValue.padEnd(solution.length, ' ').split('');
+        currentInputArray[indexToReveal] = letterToReveal;
+        const newInputValue = currentInputArray.join('').trimEnd();
+        setInputValue(newInputValue);
         setRevealedInputIndexes(prev => [...prev, indexToReveal]);
     
-        // Find an available letter in the grid to disable.
-        // This is tricky with duplicate letters.
+        // Find an available (not disabled) letter in the grid to disable.
         let gridIndexToDisable = -1;
-        const disabledCountForLetter = disabledLetterIndexes.filter((d, i) => d && currentChallenge.jumbledLetters[i] === letterToReveal).length;
-        const inputCountForLetter = finalInputValue.split('').filter(c => c === letterToReveal).length;
-
-        if (inputCountForLetter > disabledCountForLetter) {
-            for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
-                if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
-                    gridIndexToDisable = i;
-                    break;
-                }
+        for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
+            if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
+                gridIndexToDisable = i;
+                break;
             }
         }
 
@@ -333,7 +315,6 @@ const handleBackspace = () => {
             });
         }
         
-        // Apply penalty and set flags
         const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 3);
         await updateDoc(duelRef, {
             [`playerScores.${user.uid}`]: newPoints,
@@ -341,7 +322,7 @@ const handleBackspace = () => {
     
         setHasRevealed(true);
         setIsRevealOnCooldown(true);
-        setTimeout(() => setIsRevealOnCooldown(false), 2000);
+        setTimeout(() => setIsRevealOnCooldown(false), 5000); // 5 second cooldown
     };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -477,7 +458,7 @@ const handleBackspace = () => {
                     .map(uid => {
                       const disconnectedPlayer = uid === me?.uid ? me : otherPlayer;
                       return (
-                        <div key={uid} className="flex justify-between items-center opacity-50">
+                        disconnectedPlayer && <div key={uid} className="flex justify-between items-center opacity-50">
                             <div className="flex items-center gap-3">
                               <Avatar className="h-10 w-10">
                                   <AvatarImage src={disconnectedPlayer?.photoURL} alt={disconnectedPlayer?.displayName} />
@@ -575,7 +556,7 @@ const handleBackspace = () => {
                         >
                             <Key className="mr-2 h-4 w-4" />
                             Révéler (-3 pts)
-                            {isRevealOnCooldown && <span className="absolute -top-1 -right-1 text-xs bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center">...</span>}
+                            {isRevealOnCooldown && hasRevealed && <span className="absolute -top-1 -right-1 text-xs bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center">5s</span>}
                         </Button>
                     </div>
                     
@@ -606,9 +587,3 @@ const handleBackspace = () => {
     </div>
   );
 }
-
-    
-
-    
-
-    
