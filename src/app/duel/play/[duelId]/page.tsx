@@ -52,15 +52,22 @@ export default function DuelPlayPage() {
   
   // Memoize player info
   const { host, opponent, me, otherPlayer } = useMemo(() => {
-    const host = duelData?.players.find((p: any) => p.uid === duelData.hostId);
-    const opponent = duelData?.players.find((p: any) => p.uid !== duelData.hostId);
-    const me = duelData?.players.find((p: any) => p.uid === user?.uid);
-    const otherPlayer = duelData?.players.find((p: any) => p.uid !== user?.uid);
+    if (!duelData?.players) return {};
+    const host = duelData.players.find((p: any) => p.uid === duelData.hostId);
+    const opponent = duelData.players.find((p: any) => p.uid !== duelData.hostId);
+    const me = duelData.players.find((p: any) => p.uid === user?.uid);
+    const otherPlayer = duelData.players.find((p: any) => p.uid !== user?.uid);
     return { host, opponent, me, otherPlayer };
   }, [duelData, user?.uid]);
 
   const myAnswer = currentRound?.playerAnswers?.[user?.uid || ''];
   const opponentAnswer = otherPlayer ? currentRound?.playerAnswers?.[otherPlayer.uid] : undefined;
+
+  const myScore = duelData?.playerScores?.[me?.uid] ?? 0;
+  const opponentScore = duelData?.playerScores?.[otherPlayer?.uid] ?? 0;
+  const totalScore = myScore + opponentScore;
+  const myScorePercentage = totalScore > 0 ? (myScore / totalScore) * 100 : 50;
+
 
   const startNewRound = useCallback(async () => {
     if (!duelRef || !duelData || user?.uid !== duelData.hostId) return;
@@ -106,7 +113,7 @@ export default function DuelPlayPage() {
     if (duelData && duelData.status === 'active' && (!duelData.rounds || duelData.rounds.length === 0) && user?.uid === duelData.hostId) {
       startNewRound();
     }
-  }, [duelData, user?.uid, startNewRound]);
+  }, [duelData, user, startNewRound]);
   
 
   useEffect(() => {
@@ -125,9 +132,11 @@ export default function DuelPlayPage() {
           startNewRound();
         } else {
             // End of game
-            const finalScores = duelData.playerScores;
-            const winnerId = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
-            updateDoc(duelRef, { status: 'completed', winnerId: winnerId });
+            if(duelData?.playerScores) {
+              const finalScores = duelData.playerScores;
+              const winnerId = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
+              updateDoc(duelRef, { status: 'completed', winnerId: winnerId });
+            }
         }
       }, 3000); // 3-second pause before next round
     }
@@ -150,15 +159,17 @@ export default function DuelPlayPage() {
     setInputValue((prev) => prev.slice(0, -1));
 
     let reEnabled = false;
-    for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
-        if(currentRound.jumbledLetters && currentRound.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
-            setDisabledLetterIndexes(prev => {
-                const newDisabled = [...prev];
-                newDisabled[i] = false;
-                return newDisabled;
-            });
-            reEnabled = true;
-        }
+    if(currentRound.jumbledLetters) {
+      for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
+          if(currentRound.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
+              setDisabledLetterIndexes(prev => {
+                  const newDisabled = [...prev];
+                  newDisabled[i] = false;
+                  return newDisabled;
+              });
+              reEnabled = true;
+          }
+      }
     }
   };
 
@@ -262,48 +273,37 @@ export default function DuelPlayPage() {
     )
   }
 
-  const renderPlayer = (player: any, isHost: boolean) => {
-    if (!player) return <div className="w-1/3" />;
-    const score = duelData.playerScores?.[player.uid] || 0;
-    const answerForRound = currentRound?.playerAnswers?.[player.uid];
-    
-    return (
-        <div className="flex flex-col items-center gap-2 w-1/3">
-            <Avatar className="h-20 w-20 border-4 border-primary">
-                <AvatarImage src={player.photoURL} alt={player.displayName} />
-                <AvatarFallback className="text-3xl">{player.displayName?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <p className="font-bold text-lg">{player.displayName}</p>
-            <p className="text-muted-foreground text-sm">{isHost ? 'Hôte' : 'Adversaire'}</p>
-            <p className="text-2xl font-bold text-primary">{score}</p>
-            {currentRound && (
-                <div className="flex items-center gap-2 h-6">
-                    {answerForRound ? (
-                         answerForRound.isCorrect ? <Check className="text-green-500 animate-pop-in" /> : <X className="text-red-500 animate-shake" />
-                    ) : (
-                        <Loader2 className="animate-spin text-muted-foreground"/>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-  }
-
   return (
     <div className="relative flex min-h-screen flex-col">
       <SiteHeader />
       <main className="flex-1">
         <div className="container py-8 max-w-4xl mx-auto animate-fade-in text-center">
-            <div className="flex justify-around items-start mb-6">
-                {renderPlayer(host, true)}
-                <div className="flex flex-col items-center pt-8">
-                  <Swords className="h-10 w-10 text-primary animate-pulse" />
-                  <p className="text-xl font-bold mt-2">Manche {currentRoundIndex + 1}/{ROUNDS_IN_DUEL}</p>
-                </div>
-                {renderPlayer(opponent, false)}
+            <div className="mb-6 space-y-4">
+              <div className="flex justify-between items-center gap-4">
+                  <div className="flex items-center gap-2">
+                      <Avatar className="h-10 w-10 border-2 border-primary">
+                          <AvatarImage src={me?.photoURL} alt={me?.displayName} />
+                          <AvatarFallback>{me?.displayName?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-semibold hidden sm:inline">{me?.displayName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <span className="font-semibold hidden sm:inline">{otherPlayer?.displayName}</span>
+                      <Avatar className="h-10 w-10 border-2">
+                          <AvatarImage src={otherPlayer?.photoURL} alt={otherPlayer?.displayName} />
+                          <AvatarFallback>{otherPlayer?.displayName?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                  </div>
+              </div>
+              <div className="relative h-6 w-full bg-muted rounded-full overflow-hidden border">
+                  <div className="absolute top-0 left-0 h-full bg-primary transition-all duration-500 z-10" style={{ width: `${myScorePercentage}%` }}></div>
+                  <div className="absolute inset-0 flex justify-between items-center px-4 z-20">
+                      <span className="font-bold text-lg text-primary-foreground mix-blend-difference">{myScore}</span>
+                      <span className="font-bold text-lg text-foreground mix-blend-difference">{opponentScore}</span>
+                  </div>
+              </div>
+              <p className="text-xl font-bold text-muted-foreground">Manche {currentRoundIndex + 1}/{ROUNDS_IN_DUEL}</p>
             </div>
-
-            <Progress value={((currentRoundIndex + 1) / ROUNDS_IN_DUEL) * 100} className="mb-8" />
             
             {!currentRound ? (
                 <Card>
@@ -359,4 +359,4 @@ export default function DuelPlayPage() {
   );
 }
 
-
+    
