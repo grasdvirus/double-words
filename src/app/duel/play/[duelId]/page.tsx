@@ -484,3 +484,5 @@ export default function DuelPlayPage() {
     </div>
   );
 }
+
+    
