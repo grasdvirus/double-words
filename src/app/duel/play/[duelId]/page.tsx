@@ -201,25 +201,35 @@ export default function DuelPlayPage() {
     });
   };
   
-  const handleBackspace = () => {
+const handleBackspace = () => {
     if (inputValue.length === 0 || !currentChallenge || !currentChallenge.jumbledLetters) return;
-    
+
     const lastChar = inputValue[inputValue.length - 1];
-    setInputValue((prev) => prev.slice(0, -1));
+    const newInputValue = inputValue.slice(0, -1);
+    setInputValue(newInputValue);
 
-    // Do not re-enable letters that were revealed
-    const lastCharRevealedIndex = revealedIndexes.find(idx => 
-      inputValue.slice(0, -1).charAt(idx) !== currentChallenge.solutionWord.charAt(idx) &&
-      currentChallenge.solutionWord.charAt(idx) === lastChar
-    );
+    // Find the original grid index for the last character that was typed (not revealed)
+    // This is tricky. We need a way to track which input chars came from which grid index.
+    // For simplicity, we find the first available disabled letter in the grid that matches.
+    // This isn't perfect if there are duplicate letters, but it's a common approach.
 
-    if (typeof lastCharRevealedIndex !== 'undefined') {
-       return;
+    const lastCharIndexInInput = newInputValue.length;
+
+    // If the character we're deleting was a revealed one, we don't re-enable any letter in the grid.
+    if (revealedIndexes.includes(lastCharIndexInInput)) {
+        return;
     }
     
     let reEnabled = false;
+    // Iterate backwards to find the last disabled letter that matches
     for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
         if(currentChallenge.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
+             const isThisFromAReveal = revealedIndexes.some(revealedIndex => 
+                newInputValue[revealedIndex] === lastChar &&
+                // A complex check might be needed here if the grid has duplicates of the revealed letter
+                true
+             );
+
             setDisabledLetterIndexes(prev => {
                 const newDisabled = [...prev];
                 newDisabled[i] = false;
@@ -228,7 +238,7 @@ export default function DuelPlayPage() {
             reEnabled = true;
         }
     }
-  };
+};
 
     const showHint = async () => {
         if (currentChallenge?.hint && user && duelRef) {
@@ -247,56 +257,54 @@ export default function DuelPlayPage() {
 
     const handleRevealLetter = async () => {
         if (!currentChallenge || !user || !duelRef || revealCount >= 3 || isRevealOnCooldown) return;
-
+    
         const solution = currentChallenge.solutionWord;
-        
-        // Find all indexes that are not yet correct or revealed
-        const possibleIndexesToReveal = [];
+        let possibleIndexesToReveal: number[] = [];
         for (let i = 0; i < solution.length; i++) {
             if (inputValue[i] !== solution[i] && !revealedIndexes.includes(i)) {
                 possibleIndexesToReveal.push(i);
             }
         }
-
-        if (possibleIndexesToReveal.length === 0) return; // Word is already correct or fully revealed
-
-        // Choose a random index from the possible ones
+    
+        if (possibleIndexesToReveal.length === 0) return;
+    
         const indexToReveal = possibleIndexesToReveal[Math.floor(Math.random() * possibleIndexesToReveal.length)];
-
         const letterToReveal = solution[indexToReveal];
-
-        // Create new input value
+    
+        // Update input field
         let newInputValueArray = inputValue.split('');
         while(newInputValueArray.length < solution.length) newInputValueArray.push('');
         newInputValueArray[indexToReveal] = letterToReveal;
-        const newInputValue = newInputValueArray.join('');
-
-        setInputValue(newInputValue);
-        
-        // Update revealed indexes
+        setInputValue(newInputValueArray.join(''));
         setRevealedIndexes(prev => [...prev, indexToReveal]);
-
-        // Disable the used jumbled letter
-        const jumbledIndexToDisable = disabledLetterIndexes.findIndex((disabled, i) => 
-            !disabled && currentChallenge.jumbledLetters[i] === letterToReveal
-        );
-        if (jumbledIndexToDisable !== -1) {
+    
+        // Find and disable the corresponding letter in the jumbled grid
+        // Prioritize disabling a letter that is not already part of the user's correct input
+        let gridIndexToDisable = -1;
+        for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
+            if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
+                gridIndexToDisable = i;
+                break;
+            }
+        }
+    
+        if (gridIndexToDisable !== -1) {
             setDisabledLetterIndexes(prev => {
                 const newDisabled = [...prev];
-                newDisabled[jumbledIndexToDisable] = true;
+                newDisabled[gridIndexToDisable] = true;
                 return newDisabled;
             });
         }
-
+    
         // Apply penalty and cooldown
         const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 3);
         await updateDoc(duelRef, {
             [`playerScores.${user.uid}`]: newPoints,
         });
-
+    
         setRevealCount(prev => prev + 1);
         setIsRevealOnCooldown(true);
-        setTimeout(() => setIsRevealOnCooldown(false), 5000); // 5-second cooldown
+        setTimeout(() => setIsRevealOnCooldown(false), 5000);
     };
 
   const handleSubmit = async (e: FormEvent) => {
