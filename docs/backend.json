@@ -56,7 +56,7 @@
         },
         "status": {
           "type": "string",
-          "enum": ["waiting", "active", "completed"],
+          "enum": ["waiting", "active", "completed", "abandoned"],
           "description": "The current status of the duel."
         },
         "players": {
@@ -109,6 +109,11 @@
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the duel was created."
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the duel was completed or abandoned."
         },
         "winnerId": {
             "type": "string",
