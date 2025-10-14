@@ -23,7 +23,7 @@ export type GenerateDuelChallengeInput = z.infer<typeof GenerateDuelChallengeInp
 const GenerateDuelChallengeOutputSchema = z.object({
   challenge: z.string().length(2).describe('A two-letter substring challenge derived from the solution word (e.g., "ON").'),
   description: z.string().describe('A human-readable description for the challenge (e.g., \'Contient "on"\').'),
-  solutionWord: z.string().min(5).describe("A single, valid word or a well-known phrase in the requested language. It must be in UPPERCASE."),
+  solutionWord: z.string().min(5).max(10).describe("A single, common, everyday word in the requested language. It must be in UPPERCASE and contain NO SPACES."),
   hint: z.string().describe("A short hint, definition, or clue for the solutionWord to help the user guess it."),
 });
 
@@ -46,7 +46,7 @@ const generateDuelChallengePrompt = ai.definePrompt({
   {{/each}}
 
   Please perform the following steps:
-  1.  Generate a new 'solutionWord'. This should be a single, common word or a very well-known phrase in the requested language ({{language}}), with a minimum length of 5 letters. It must NOT be in the list of existing words. Prioritize famous expressions, movie titles, or common knowledge. The word must be in UPPERCASE.
+  1.  Generate a new 'solutionWord'. It MUST be a single, simple, common, everyday word in the requested language ({{language}}). It must be between 5 and 10 letters long, be in UPPERCASE, and must NOT contain any spaces or be a proper noun.
   2.  From the 'solutionWord', extract a 'challenge' which is a two-letter (2) substring from that word. For example, if the word is "BONJOUR", a valid challenge would be "ON", "BO", or "UR".
   3.  Create a 'description' for the challenge in the requested language ({{language}}). For example, if the challenge is "ON", the french description should be 'Contient "on"'.
   4.  Generate a short, clever 'hint' for the 'solutionWord' in the requested language ({{language}}). The hint should be a definition, a clue, or a sentence that helps players guess the word.
