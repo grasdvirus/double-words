@@ -9,12 +9,13 @@ import { doc, updateDoc, serverTimestamp, deleteDoc, Timestamp } from 'firebase/
 import { useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Swords, Check, X, Loader2, Crown, ArrowRight, Undo2 } from 'lucide-react';
+import { Swords, Check, X, Loader2, Crown, ArrowRight, Undo2, Lightbulb } from 'lucide-react';
 import { generateDuelChallenge } from '@/ai/flows/generate-duel-challenge';
 import { Button } from '@/components/ui/button';
 import { LetterGrid } from '@/components/letter-grid';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { useNotification } from '@/contexts/notification-context';
 
 
 const shuffle = (array: string[]) => {
@@ -39,6 +40,7 @@ export default function DuelPlayPage() {
   }, [firestore, duelId]);
 
   const { data: duelData, isLoading } = useDoc(duelRef);
+  const { showNotification } = useNotification();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -135,35 +137,43 @@ export default function DuelPlayPage() {
 
   // Effect to handle player leaving
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = async () => {
       if (!duelData || !user || !duelRef || duelData.status !== 'active') return;
-
+  
       const isHost = duelData.hostId === user.uid;
-      const remainingPlayers = duelData.players.filter(p => p.uid !== user.uid);
-
-      if (isHost) {
-        deleteDoc(duelRef);
-      } else if (remainingPlayers.length > 0) {
-        updateDoc(duelRef, {
-          status: 'completed',
-          winnerId: remainingPlayers[0].uid,
-          endedAt: serverTimestamp(),
-          players: remainingPlayers,
-        });
+      const remainingPlayers = duelData.players.filter((p: any) => p.uid !== user.uid);
+  
+      try {
+        if (isHost) {
+          // If host leaves, abandon the game
+          await updateDoc(duelRef, {
+            status: 'abandoned',
+            winnerId: remainingPlayers.length > 0 ? remainingPlayers[0].uid : null,
+            endedAt: serverTimestamp(),
+          });
+        } else {
+          // If guest leaves, update players list and let the game end naturally for the host
+          await updateDoc(duelRef, {
+            players: remainingPlayers,
+          });
+        }
+      } catch (error) {
+        console.error("Error handling player leaving:", error);
       }
     };
+  
     window.addEventListener('beforeunload', handleBeforeUnload);
-
+  
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [duelId, user?.uid, duelData, duelRef]);
+  }, [duelId, user, duelData, duelRef]);
 
   useEffect(() => {
-    if (duelRef && duelData?.status === 'active' && duelData.players.length === 1 && duelData.startedAt) {
+    if (duelRef && duelData?.status === 'active' && duelData.players.length < 2 && duelData.startedAt) {
       updateDoc(duelRef, {
         status: 'completed',
-        winnerId: duelData.players[0].uid,
+        winnerId: duelData.players.length > 0 ? duelData.players[0].uid : null,
         endedAt: serverTimestamp()
       });
     }
@@ -205,6 +215,21 @@ export default function DuelPlayPage() {
         }
     }
   };
+
+    const showHint = async () => {
+        if (currentChallenge?.hint && user && duelRef) {
+          showNotification({
+            title: "Indice",
+            message: currentChallenge.hint,
+            type: 'info',
+            duration: 5000,
+          });
+          const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 2);
+          await updateDoc(duelRef, {
+              [`playerScores.${user.uid}`]: newPoints,
+          });
+        }
+      };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -318,7 +343,7 @@ export default function DuelPlayPage() {
                 <CardTitle>Tableau des scores</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 {duelData.players.map(p => (
+                 {(duelData.players.length > 0 ? duelData.players : [me, otherPlayer].filter(Boolean)).map(p => (
                    <div key={p.uid} className="flex justify-between items-center">
                      <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
@@ -331,7 +356,7 @@ export default function DuelPlayPage() {
                    </div>
                  ))}
                  {Object.keys(duelData.playerScores)
-                    .filter(uid => !duelData.players.some(p => p.uid === uid))
+                    .filter(uid => !duelData.players.some(p => p.uid === uid) && (me?.uid === uid || otherPlayer?.uid === uid))
                     .map(uid => (
                       <div key={uid} className="flex justify-between items-center opacity-50">
                           <span className="font-semibold italic">Joueur déconnecté</span>
@@ -409,6 +434,13 @@ export default function DuelPlayPage() {
                             </CardTitle>
                         </CardHeader>
                     </Card>
+
+                    <div className="flex justify-center mb-2">
+                        <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || !currentChallenge.hint}>
+                            <Lightbulb className="mr-2 h-4 w-4" />
+                            Indice (-2 points)
+                        </Button>
+                    </div>
                     
                     <div className="space-y-4">
                         <form onSubmit={handleSubmit} className="space-y-4">
