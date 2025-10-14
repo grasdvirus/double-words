@@ -58,7 +58,7 @@ const generateDuelChallengeFlow = ai.defineFlow(
   {
     name: 'generateDuelChallengeFlow',
     inputSchema: GenerateDuelChallengeInputSchema,
-    outputSchema: GenerateDuelTChallengeOutputSchema,
+    outputSchema: GenerateDuelChallengeOutputSchema,
   },
   async input => {
     const {output} = await generateDuelChallengePrompt(input);
