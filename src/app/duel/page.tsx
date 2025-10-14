@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowRight, Users, Gamepad, KeyRound, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, where, getDocs, updateDoc, doc, arrayUnion } from "firebase/firestore";
+import { collection, query, where, getDocs, updateDoc, doc, arrayUnion, getDoc, setDoc } from "firebase/firestore";
 import { useNotification } from "@/contexts/notification-context";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -94,33 +94,45 @@ export default function DuelLobbyPage() {
       };
       
       const gameDocRef = doc(firestore, "duels", gameDoc.id);
+
+      // Fetch the latest game data
+      const currentDocSnap = await getDoc(gameDocRef);
+      if (!currentDocSnap.exists()) {
+        throw new Error("Le document du jeu n'existe plus.");
+      }
+      const currentData = currentDocSnap.data();
+
+      const updatedPlayers = [...currentData.players, player2];
+
       const updateData = {
-        players: arrayUnion(player2),
+        ...currentData,
+        players: updatedPlayers,
         status: 'active'
       };
 
-      await updateDoc(gameDocRef, updateData)
+      await setDoc(gameDocRef, updateData)
         .catch(error => {
             const permissionError = new FirestorePermissionError({
                 path: gameDocRef.path,
-                operation: 'update',
+                operation: 'write', // Changed to 'write' for setDoc
                 requestResourceData: updateData,
             });
             errorEmitter.emit('permission-error', permissionError);
-            // We don't show a user-facing error here, as the listener will handle it.
             setIsJoining(false);
+            throw error; // Re-throw to prevent navigation
         });
 
-      // router.push is not awaited inside catch as it would prevent it from executing
       router.push(`/duel/play/${gameDoc.id}`);
 
     } catch (error) {
-       // This will catch errors from getDocs
-       const permissionError = new FirestorePermissionError({
-            path: 'duels',
-            operation: 'list', // getDocs is a 'list' operation
-       });
-       errorEmitter.emit('permission-error', permissionError);
+       if (error instanceof FirestorePermissionError) {
+         // Already handled
+       } else {
+         errorEmitter.emit('permission-error', new FirestorePermissionError({
+           path: 'duels',
+           operation: 'list'
+         }));
+       }
        setIsJoining(false);
     }
   };
