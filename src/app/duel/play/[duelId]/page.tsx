@@ -5,11 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteHeader } from '@/components/site-header';
 import { useDoc, useFirestore, useUser } from '@/firebase';
-import { doc, updateDoc, serverTimestamp, deleteDoc, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Swords, Check, X, Loader2, Crown, ArrowRight, Undo2, Lightbulb, Key } from 'lucide-react';
+import { Swords, Check, X, Loader2, Crown, ArrowRight, Undo2, Lightbulb } from 'lucide-react';
 import { generateDuelChallenge } from '@/ai/flows/generate-duel-challenge';
 import { Button } from '@/components/ui/button';
 import { LetterGrid } from '@/components/letter-grid';
@@ -52,10 +52,6 @@ export default function DuelPlayPage() {
   const [isWrong, setIsWrong] = useState(false);
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
-
-  const [revealedInputIndexes, setRevealedInputIndexes] = useState<number[]>([]);
-  const [hasRevealed, setHasRevealed] = useState(false);
-  const [isRevealOnCooldown, setIsRevealOnCooldown] = useState(false);
   
   const currentChallenge = duelData?.currentChallenge;
   
@@ -133,9 +129,9 @@ export default function DuelPlayPage() {
           const playerIds = Object.keys(finalScores);
           let winnerId: string | null = null;
           
-          if (playerIds.length === 2) {
-              const score1 = finalScores[playerIds[0]];
-              const score2 = finalScores[playerIds[1]];
+          if (playerIds.length >= 2) {
+              const score1 = finalScores[playerIds[0]] || 0;
+              const score2 = finalScores[playerIds[1]] || 0;
               if (score1 > score2) {
                   winnerId = playerIds[0];
               } else if (score2 > score1) {
@@ -200,8 +196,6 @@ export default function DuelPlayPage() {
         setInputValue("");
         const letterCount = currentChallenge.jumbledLetters?.length || 0;
         setDisabledLetterIndexes(new Array(letterCount).fill(false));
-        setRevealedInputIndexes([]);
-        setHasRevealed(false);
     }
   }, [currentChallenge]);
 
@@ -218,28 +212,16 @@ export default function DuelPlayPage() {
 const handleBackspace = () => {
     if (inputValue.length === 0 || !currentChallenge || !currentChallenge.jumbledLetters) return;
 
-    const lastCharIndexInInput = inputValue.length - 1;
-    const lastChar = inputValue[lastCharIndexInInput];
-    
-    // If the character being deleted was revealed, just remove it from input but don't re-enable any grid letter.
-    if (revealedInputIndexes.includes(lastCharIndexInInput)) {
-        setInputValue(prev => prev.slice(0, -1));
-        return;
-    }
-    
+    const lastChar = inputValue[inputValue.length - 1];
     setInputValue(prev => prev.slice(0, -1));
-    const newInputValue = inputValue.slice(0, -1);
 
-    // To re-enable the correct letter in the grid (especially with duplicates),
-    // we count how many of that character are now in the input, and how many are disabled in the grid.
+    const newInputValue = inputValue.slice(0, -1);
     const charCountInInput = newInputValue.split('').filter(c => c === lastChar).length;
     let disabledCountInGrid = 0;
     let indexToReEnable = -1;
 
-    // Find the Nth disabled button for this character, where N is the new count in the input.
     for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
         if (currentChallenge.jumbledLetters[i] === lastChar && disabledLetterIndexes[i]) {
-            // Check if this disabled instance is the one we should re-enable
             if (disabledCountInGrid === charCountInInput) {
                 indexToReEnable = i;
                 break;
@@ -272,59 +254,6 @@ const handleBackspace = () => {
         }
       };
 
-    const handleRevealLetter = async () => {
-        if (!currentChallenge || !user || !duelRef || hasRevealed || isRevealOnCooldown) return;
-    
-        const solution = currentChallenge.solutionWord;
-        let indexToReveal = -1;
-    
-        // Find a random index that hasn't been correctly filled by the user yet and is not revealed
-        const possibleIndexes: number[] = [];
-        for (let i = 0; i < solution.length; i++) {
-            if (inputValue[i] !== solution[i] && !revealedInputIndexes.includes(i)) {
-                possibleIndexes.push(i);
-            }
-        }
-    
-        if (possibleIndexes.length === 0) return; // Word is already correct
-    
-        indexToReveal = possibleIndexes[Math.floor(Math.random() * possibleIndexes.length)];
-        const letterToReveal = solution[indexToReveal];
-
-        // Create the new input string by filling the revealed letter
-        const currentInputArray = inputValue.padEnd(solution.length, ' ').split('');
-        currentInputArray[indexToReveal] = letterToReveal;
-        const newInputValue = currentInputArray.join('').trimEnd();
-        setInputValue(newInputValue);
-        setRevealedInputIndexes(prev => [...prev, indexToReveal]);
-    
-        // Find an available (not disabled) letter in the grid to disable.
-        let gridIndexToDisable = -1;
-        for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
-            if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
-                gridIndexToDisable = i;
-                break;
-            }
-        }
-
-        if (gridIndexToDisable !== -1) {
-            setDisabledLetterIndexes(prev => {
-                const newDisabled = [...prev];
-                newDisabled[gridIndexToDisable] = true;
-                return newDisabled;
-            });
-        }
-        
-        const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 3);
-        await updateDoc(duelRef, {
-            [`playerScores.${user.uid}`]: newPoints,
-        });
-    
-        setHasRevealed(true);
-        setIsRevealOnCooldown(true);
-        setTimeout(() => setIsRevealOnCooldown(false), 5000); // 5 second cooldown
-    };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isSubmitting || !currentChallenge || !currentChallenge.solutionWord || !user || !duelRef) return;
@@ -339,7 +268,6 @@ const handleBackspace = () => {
         setInputValue("");
         if(currentChallenge && currentChallenge.jumbledLetters) {
             setDisabledLetterIndexes(new Array(currentChallenge.jumbledLetters.length).fill(false));
-            setRevealedInputIndexes([]);
         }
       }, 800);
       setTimeout(() => setIsSubmitting(false), 820);
@@ -373,11 +301,10 @@ const handleBackspace = () => {
                 className={cn(
                     "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
                     "bg-card transition-all duration-300",
-                    inputValue[i] && inputValue[i] !== ' ' && "border-primary ring-2 ring-primary animate-pop-in",
-                    revealedInputIndexes.includes(i) && "border-accent ring-accent text-accent"
+                    inputValue[i] && "border-primary ring-2 ring-primary animate-pop-in"
                 )}
             >
-                {inputValue[i] === ' ' ? '' : inputValue[i]}
+                {inputValue[i]}
             </div>
           ))}
         </div>
@@ -408,6 +335,10 @@ const handleBackspace = () => {
     const winner = duelData.players.find(p => p.uid === duelData.winnerId);
     const isTie = duelData.winnerId === null && duelData.status === 'completed';
     
+    // Create a list of all participants, including those who may have disconnected
+    const allParticipants = [me, otherPlayer].filter(Boolean);
+    const displayedPlayers = new Set();
+    
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center">
         <SiteHeader />
@@ -430,8 +361,19 @@ const handleBackspace = () => {
                         <p className="font-bold text-3xl">{winner?.displayName}</p>
                     </div>
                 </>
-            ) : duelData.status === 'abandoned' ? (
-                 <p className="text-2xl my-8">{t('player_left_game')}</p>
+            ) : duelData.status === 'abandoned' && duelData.players.length > 0 ? (
+                 <>
+                    <Crown className="h-24 w-24 text-yellow-400 my-8"/>
+                    <p className="text-2xl mb-4">{t('winner_is')}</p>
+                    <div className="flex flex-col items-center gap-2">
+                        <Avatar className="h-32 w-32 border-4 border-primary">
+                            <AvatarImage src={duelData.players[0]?.photoURL} alt={duelData.players[0]?.displayName} />
+                            <AvatarFallback className="text-5xl">{duelData.players[0]?.displayName?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <p className="font-bold text-3xl">{duelData.players[0]?.displayName}</p>
+                         <p className="text-muted-foreground mt-2">{t('player_left_game')}</p>
+                    </div>
+                 </>
             ) : (
                  <p className="text-2xl my-8">{t('game_over')}</p>
             )}
@@ -441,36 +383,23 @@ const handleBackspace = () => {
                 <CardTitle>{t('score_board')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                 {(duelData.players.length > 0 ? duelData.players : [me, otherPlayer].filter(Boolean)).map(p => (
-                   p && <div key={p.uid} className="flex justify-between items-center">
-                     <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                            <AvatarImage src={p.photoURL} alt={p.displayName} />
-                            <AvatarFallback>{p.displayName?.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-semibold">{p.displayName}</span>
-                     </div>
-                      <span className="font-bold text-xl text-primary">{duelData.playerScores[p.uid] || 0}</span>
-                   </div>
-                 ))}
-                 {Object.keys(duelData.playerScores)
-                    .filter(uid => !duelData.players.some(p => p.uid === uid) && (me?.uid === uid || otherPlayer?.uid === uid))
-                    .map(uid => {
-                      const disconnectedPlayer = uid === me?.uid ? me : otherPlayer;
-                      return (
-                        disconnectedPlayer && <div key={uid} className="flex justify-between items-center opacity-50">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-10 w-10">
-                                  <AvatarImage src={disconnectedPlayer?.photoURL} alt={disconnectedPlayer?.displayName} />
-                                  <AvatarFallback>{disconnectedPlayer?.displayName?.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <span className="font-semibold italic">{disconnectedPlayer?.displayName || t('disconnected_player')}</span>
-                            </div>
-                            <span className="font-bold text-xl text-primary">{duelData.playerScores[uid] || 0}</span>
-                        </div>
-                      )
-                    })
-                 }
+                 {allParticipants.map(p => {
+                    if (!p || displayedPlayers.has(p.uid)) return null;
+                    displayedPlayers.add(p.uid);
+                    const isConnected = duelData.players.some(dp => dp.uid === p.uid);
+                    return (
+                        <div key={p.uid} className={cn("flex justify-between items-center", !isConnected && "opacity-50")}>
+                         <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                                <AvatarImage src={p.photoURL} alt={p.displayName} />
+                                <AvatarFallback>{p.displayName?.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className={cn("font-semibold", !isConnected && "italic")}>{p.displayName}</span>
+                         </div>
+                          <span className="font-bold text-xl text-primary">{duelData.playerScores[p.uid] || 0}</span>
+                       </div>
+                    )
+                 })}
               </CardContent>
             </Card>
 
@@ -547,17 +476,6 @@ const handleBackspace = () => {
                             <Lightbulb className="mr-2 h-4 w-4" />
                             {t('hint_penalty')}
                         </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleRevealLetter}
-                            disabled={isSubmitting || hasRevealed || isRevealOnCooldown || !currentChallenge}
-                            className="relative"
-                        >
-                            <Key className="mr-2 h-4 w-4" />
-                            Révéler (-3 pts)
-                            {isRevealOnCooldown && hasRevealed && <span className="absolute -top-1 -right-1 text-xs bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center">5s</span>}
-                        </Button>
                     </div>
                     
                     <div className="space-y-4">
@@ -587,3 +505,5 @@ const handleBackspace = () => {
     </div>
   );
 }
+
+    
