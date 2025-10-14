@@ -68,7 +68,7 @@ export default function DuelPlayPage() {
     setIsGenerating(true);
     try {
         const result = await generateDuelChallenge({
-            existingWords: duelData.rounds.map(r => r.solutionWord)
+            existingWords: duelData.rounds?.map(r => r.solutionWord) || []
         });
 
         const word = result.solutionWord.toUpperCase();
@@ -89,10 +89,10 @@ export default function DuelPlayPage() {
             playerAnswers: {}
         };
 
-        const updatedRounds = [...duelData.rounds, newRound];
+        const updatedRounds = [...(duelData.rounds || []), newRound];
         await updateDoc(duelRef, {
             rounds: updatedRounds,
-            currentRound: duelData.rounds.length
+            currentRound: (duelData.rounds || []).length
         });
 
     } catch (e) {
@@ -103,10 +103,11 @@ export default function DuelPlayPage() {
   }, [duelRef, duelData, user?.uid]);
 
   useEffect(() => {
-    if (duelData && duelData.status === 'active' && duelData.rounds.length === 0 && user?.uid === duelData.hostId) {
+    if (duelData && duelData.status === 'active' && (!duelData.rounds || duelData.rounds.length === 0) && user?.uid === duelData.hostId) {
       startNewRound();
     }
   }, [duelData, user?.uid, startNewRound]);
+  
 
   useEffect(() => {
     if (currentRound) {
@@ -118,7 +119,7 @@ export default function DuelPlayPage() {
   
   useEffect(() => {
     // If both players have answered, the host prepares the next round
-    if (user?.uid === duelData?.hostId && currentRound && Object.keys(currentRound.playerAnswers).length === 2) {
+    if (user?.uid === duelData?.hostId && currentRound && currentRound.playerAnswers && Object.keys(currentRound.playerAnswers).length === 2) {
       setTimeout(() => {
         if (currentRoundIndex < ROUNDS_IN_DUEL - 1) {
           startNewRound();
@@ -150,7 +151,7 @@ export default function DuelPlayPage() {
 
     let reEnabled = false;
     for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
-        if(currentRound.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
+        if(currentRound.jumbledLetters && currentRound.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
             setDisabledLetterIndexes(prev => {
                 const newDisabled = [...prev];
                 newDisabled[i] = false;
@@ -175,7 +176,7 @@ export default function DuelPlayPage() {
       setTimeout(() => {
         setIsWrong(false);
         setInputValue("");
-        if(currentRound) {
+        if(currentRound && currentRound.jumbledLetters) {
             setDisabledLetterIndexes(new Array(currentRound.jumbledLetters.length).fill(false));
         }
       }, 800);
@@ -357,4 +358,5 @@ export default function DuelPlayPage() {
     </div>
   );
 }
+
 
