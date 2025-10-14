@@ -14,7 +14,9 @@
           "description": "URL of the user's profile picture."
         }
       },
-      "required": ["displayName"]
+      "required": [
+        "displayName"
+      ]
     },
     "LeaderboardEntry": {
       "title": "Leaderboard Entry",
@@ -39,7 +41,11 @@
           "description": "Timestamp of the last score update."
         }
       },
-      "required": ["displayName", "score", "updatedAt"]
+      "required": [
+        "displayName",
+        "score",
+        "updatedAt"
+      ]
     },
     "DuelGame": {
       "title": "Duel Game",
@@ -56,7 +62,12 @@
         },
         "status": {
           "type": "string",
-          "enum": ["waiting", "active", "completed", "abandoned"],
+          "enum": [
+            "waiting",
+            "active",
+            "completed",
+            "abandoned"
+          ],
           "description": "The current status of the duel."
         },
         "players": {
@@ -64,46 +75,64 @@
           "items": {
             "type": "object",
             "properties": {
-              "uid": { "type": "string" },
-              "displayName": { "type": "string" },
-              "photoURL": { "type": "string" }
+              "uid": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "photoURL": {
+                "type": "string"
+              }
             }
           }
         },
         "playerScores": {
           "type": "object",
           "properties": {},
-          "additionalProperties": { "type": "number" },
+          "additionalProperties": {
+            "type": "number"
+          },
           "description": "Scores for each player, keyed by UID."
         },
-        "currentRound": {
-            "type": "number",
-            "description": "The current round number of the duel."
+        "duration": {
+          "type": "number",
+          "description": "Duration of the duel in minutes."
         },
-        "rounds": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "challenge": { "type": "string" },
-                    "description": { "type": "string" },
-                    "solutionWord": { "type": "string" },
-                    "hint": { "type": "string" },
-                    "jumbledLetters": { "type": "array", "items": { "type": "string" } },
-                    "playerAnswers": {
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "object",
-                            "properties": {
-                                "answer": { "type": "string" },
-                                "isCorrect": { "type": "boolean" },
-                                "timeTaken": { "type": "number" }
-                            }
-                        }
-                    }
-                }
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp for when the duel becomes active."
+        },
+        "wordHistory": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of words already found in the duel."
+        },
+        "currentChallenge": {
+          "type": "object",
+          "properties": {
+            "challenge": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "solutionWord": {
+              "type": "string"
+            },
+            "hint": {
+              "type": "string"
+            },
+            "jumbledLetters": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
+          }
         },
         "createdAt": {
           "type": "string",
@@ -116,15 +145,25 @@
           "description": "Timestamp of when the duel was completed or abandoned."
         },
         "winnerId": {
-            "type": "string",
-            "description": "The UID of the winning player."
+          "type": "string",
+          "description": "The UID of the winning player."
         }
       },
-      "required": ["gameCode", "hostId", "status", "players", "createdAt", "playerScores", "currentRound", "rounds"]
+      "required": [
+        "gameCode",
+        "hostId",
+        "status",
+        "players",
+        "createdAt",
+        "playerScores",
+        "duration"
+      ]
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": [
+      "google.com"
+    ]
   },
   "firestore": {
     "/users/{userId}": {
@@ -140,10 +179,10 @@
       "description": "Stores the highest score for each user. Publicly readable, but a user can only write to their own entry."
     },
     "/duels/{duelId}": {
-        "schema": {
-            "$ref": "#/entities/DuelGame"
-        },
-        "description": "Stores real-time duel game sessions. Players can create, join, and update their own games."
+      "schema": {
+        "$ref": "#/entities/DuelGame"
+      },
+      "description": "Stores real-time duel game sessions. Players can create, join, and update their own games."
     }
   }
 }

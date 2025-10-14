@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowRight, Users, Gamepad, KeyRound, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useNotification } from "@/contexts/notification-context";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -25,7 +25,7 @@ export default function DuelLobbyPage() {
   const { user, isUserLoading } = useUser();
 
   const handleJoinGame = async () => {
-    if (!user) {
+    if (!user || !firestore) {
       showNotification({
         title: "Connexion requise",
         message: "Vous devez être connecté pour rejoindre un duel.",
@@ -95,34 +95,26 @@ export default function DuelLobbyPage() {
       
       const gameDocRef = doc(firestore, "duels", gameDoc.id);
 
-      // Fetch the latest game data
-      const currentDocSnap = await getDoc(gameDocRef);
-      if (!currentDocSnap.exists()) {
-        throw new Error("Le document du jeu n'existe plus.");
-      }
-      const currentData = currentDocSnap.data();
-      
-      const updatedPlayers = [...currentData.players, player2];
-      
-      const updatedScores = { ...currentData.playerScores, [user.uid]: 0 };
+      const updatedPlayers = [...gameData.players, player2];
+      const updatedScores = { ...gameData.playerScores, [user.uid]: 0 };
 
       const updateData = {
-        ...currentData,
         players: updatedPlayers,
         playerScores: updatedScores,
-        status: 'active'
+        status: 'active',
+        startedAt: serverTimestamp() // Start the clock
       };
 
-      await setDoc(gameDocRef, updateData)
+      await setDoc(gameDocRef, updateData, { merge: true })
         .catch(error => {
             const permissionError = new FirestorePermissionError({
                 path: gameDocRef.path,
-                operation: 'write',
+                operation: 'update',
                 requestResourceData: updateData,
             });
             errorEmitter.emit('permission-error', permissionError);
             setIsJoining(false);
-            throw error; // Re-throw to prevent navigation
+            throw error;
         });
 
       router.push(`/duel/play/${gameDoc.id}`);
@@ -157,13 +149,13 @@ export default function DuelLobbyPage() {
                   Créer une partie
                 </CardTitle>
                 <CardDescription>
-                  Créez une nouvelle salle de jeu et invitez un ami avec un code.
+                  Configurez un duel et invitez un ami à vous rejoindre.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex items-end">
                 <Button asChild className="w-full" disabled={isUserLoading}>
                   <Link href="/duel/create">
-                    Créer et obtenir un code
+                    Configurer une partie
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -186,7 +178,7 @@ export default function DuelLobbyPage() {
                     className="text-center text-lg h-12 tracking-widest font-mono" 
                     maxLength={6}
                     value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value)}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     disabled={isJoining || isUserLoading}
                   />
                  <Button className="w-full" onClick={handleJoinGame} disabled={isJoining || isUserLoading}>
