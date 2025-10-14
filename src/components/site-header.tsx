@@ -19,26 +19,28 @@ import { useUser, useAuth } from "@/firebase";
 import { signInWithGoogle, signOut } from "@/firebase/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { useNotification } from "@/contexts/notification-context";
+import { useTranslations } from "@/hooks/use-translations";
 
 const navItems = [
-  { href: "/play", label: "Jouer", icon: Swords },
-  { href: "/rules", label: "Règles", icon: BookOpen },
-  { href: "/leaderboard", label: "Classement", icon: Trophy },
-  { href: "/settings", label: "Paramètres", icon: Settings },
+  { href: "/play", labelKey: "play" as const, icon: Swords },
+  { href: "/rules", labelKey: "rules" as const, icon: BookOpen },
+  { href: "/leaderboard", labelKey: "leaderboard" as const, icon: Trophy },
+  { href: "/settings", labelKey: "settings" as const, icon: Settings },
 ];
 
 function AuthButton() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const { showNotification } = useNotification();
+  const t = useTranslations();
 
 
   const handleSignIn = async () => {
     if (!auth) {
       console.error("L'instance d'authentification Firebase n'est pas prête.");
       showNotification({
-        title: "Erreur",
-        message: "Le service d'authentification n'est pas disponible.",
+        title: t('auth_error'),
+        message: t('auth_service_error'),
         type: 'error'
       });
       return;
@@ -48,8 +50,8 @@ function AuthButton() {
     } catch (error: any) {
       console.error("Erreur de connexion Google :", error);
       showNotification({
-        title: "Erreur de connexion",
-        message: "Impossible de se connecter avec Google. Veuillez réessayer.",
+        title: t('auth_error'),
+        message: t('auth_error_message'),
         type: 'error'
       });
     }
@@ -78,7 +80,7 @@ function AuthButton() {
         </SheetTrigger>
         <SheetContent>
             <SheetHeader>
-                <SheetTitle>Profil</SheetTitle>
+                <SheetTitle>{t('profile')}</SheetTitle>
             </SheetHeader>
             <div className="flex flex-col items-center justify-center gap-4 py-8">
                 <Avatar className="h-24 w-24">
@@ -89,7 +91,7 @@ function AuthButton() {
                 <p className="text-sm text-muted-foreground">{user.email}</p>
                 <Button onClick={handleSignOut} variant="destructive" className="mt-4">
                   <LogOut className="mr-2"/>
-                  Déconnexion
+                  {t('logout')}
                 </Button>
             </div>
         </SheetContent>
@@ -100,13 +102,14 @@ function AuthButton() {
   return (
     <Button onClick={handleSignIn}>
       <LogIn className="mr-2" />
-      Connexion
+      {t('connect')}
     </Button>
   );
 }
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const t = useTranslations();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -131,7 +134,7 @@ export function SiteHeader() {
             >
               <Link href={item.href}>
                 <item.icon className="mr-2 h-4 w-4" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             </Button>
           ))}
@@ -140,7 +143,7 @@ export function SiteHeader() {
         <div className="flex flex-1 items-center justify-end gap-2">
             {pathname !== "/" && (
                  <Button asChild variant="ghost" size="icon">
-                  <Link href="/" aria-label="Accueil">
+                  <Link href="/" aria-label={t('home')}>
                     <Home />
                   </Link>
                 </Button>

@@ -14,6 +14,7 @@ import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from 
 import { useNotification } from "@/contexts/notification-context";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
+import { useTranslations } from "@/hooks/use-translations";
 
 
 export default function DuelLobbyPage() {
@@ -23,12 +24,13 @@ export default function DuelLobbyPage() {
   const { showNotification } = useNotification();
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
+  const t = useTranslations();
 
   const handleJoinGame = async () => {
     if (!user || !firestore) {
       showNotification({
-        title: "Connexion requise",
-        message: "Vous devez être connecté pour rejoindre un duel.",
+        title: t('auth_required'),
+        message: t('auth_required_message'),
         type: 'error'
       });
       return;
@@ -36,8 +38,8 @@ export default function DuelLobbyPage() {
 
     if (!joinCode || joinCode.length !== 6) {
       showNotification({
-        title: "Code invalide",
-        message: "Veuillez entrer un code de partie à 6 caractères.",
+        title: t('invalid_code'),
+        message: t('invalid_code_message'),
         type: 'error'
       });
       return;
@@ -56,8 +58,8 @@ export default function DuelLobbyPage() {
 
       if (querySnapshot.empty) {
         showNotification({
-          title: "Partie non trouvée",
-          message: "Aucune partie en attente avec ce code. Vérifiez le code et réessayez.",
+          title: t('game_not_found'),
+          message: t('game_not_found_message'),
           type: 'error'
         });
         setIsJoining(false);
@@ -69,8 +71,8 @@ export default function DuelLobbyPage() {
 
       if (gameData.hostId === user.uid) {
         showNotification({
-          title: "Impossible de rejoindre",
-          message: "Vous ne pouvez pas rejoindre votre propre partie.",
+          title: t('cannot_join_own_game'),
+          message: t('cannot_join_own_game_message'),
           type: 'error'
         });
         setIsJoining(false);
@@ -79,8 +81,8 @@ export default function DuelLobbyPage() {
       
       if (gameData.players.length >= 2) {
           showNotification({
-             title: "Partie complète",
-             message: "Cette partie a déjà deux joueurs.",
+             title: t('game_full'),
+             message: t('game_full_message'),
              type: 'error'
           });
           setIsJoining(false);
@@ -138,7 +140,7 @@ export default function DuelLobbyPage() {
         <div className="container py-8 max-w-2xl mx-auto animate-fade-in">
           <h1 className="text-4xl font-bold text-primary mb-8 text-center flex items-center justify-center gap-4">
             <Users className="h-10 w-10" />
-            Mode Duel
+            {t('lobby_title')}
           </h1>
           
           <div className="grid md:grid-cols-2 gap-8">
@@ -146,16 +148,16 @@ export default function DuelLobbyPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
                   <Gamepad className="h-6 w-6 text-primary" />
-                  Créer une partie
+                  {t('create_a_game')}
                 </CardTitle>
                 <CardDescription>
-                  Configurez un duel et invitez un ami à vous rejoindre.
+                  {t('create_game_description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex items-end">
                 <Button asChild className="w-full" disabled={isUserLoading}>
                   <Link href="/duel/create">
-                    Configurer une partie
+                    {t('setup_game')}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
@@ -166,15 +168,15 @@ export default function DuelLobbyPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-3">
                   <KeyRound className="h-6 w-6 text-primary" />
-                  Rejoindre une partie
+                  {t('join_a_game')}
                 </CardTitle>
                 <CardDescription>
-                  Entrez le code d'une partie existante pour rejoindre le duel.
+                  {t('join_game_description')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col justify-end gap-4">
                  <Input 
-                    placeholder="ENTREZ LE CODE" 
+                    placeholder={t('enter_code')} 
                     className="text-center text-lg h-12 tracking-widest font-mono" 
                     maxLength={6}
                     value={joinCode}
@@ -182,7 +184,7 @@ export default function DuelLobbyPage() {
                     disabled={isJoining || isUserLoading}
                   />
                  <Button className="w-full" onClick={handleJoinGame} disabled={isJoining || isUserLoading}>
-                    {isJoining ? <Loader2 className="animate-spin" /> : "Rejoindre la partie"}
+                    {isJoining ? <Loader2 className="animate-spin" /> : t('joining_game')}
                     {!isJoining && <ArrowRight className="ml-2 h-4 w-4" />}
                  </Button>
               </CardContent>

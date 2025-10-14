@@ -16,6 +16,7 @@ import { LetterGrid } from '@/components/letter-grid';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { useNotification } from '@/contexts/notification-context';
+import { useTranslations } from '@/hooks/use-translations';
 
 
 const shuffle = (array: string[]) => {
@@ -30,6 +31,7 @@ export default function DuelPlayPage() {
   const params = useParams();
   const router = useRouter();
   const duelId = params.duelId as string;
+  const t = useTranslations();
   
   const firestore = useFirestore();
   const { user } = useUser();
@@ -182,13 +184,13 @@ export default function DuelPlayPage() {
   useEffect(() => {
     if (currentChallenge) {
         setInputValue("");
-        const letterCount = currentChallenge.jumbledLetters.length || 0;
+        const letterCount = currentChallenge.jumbledLetters?.length || 0;
         setDisabledLetterIndexes(new Array(letterCount).fill(false));
     }
   }, [currentChallenge]);
 
   const handleKeyPress = (key: string, index: number) => {
-    if (!currentChallenge || inputValue.length >= currentChallenge.solutionWord.length) return;
+    if (!currentChallenge || !currentChallenge.solutionWord || inputValue.length >= currentChallenge.solutionWord.length) return;
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -219,7 +221,7 @@ export default function DuelPlayPage() {
     const showHint = async () => {
         if (currentChallenge?.hint && user && duelRef) {
           showNotification({
-            title: "Indice",
+            title: t('hint'),
             message: currentChallenge.hint,
             type: 'info',
             duration: 5000,
@@ -233,7 +235,7 @@ export default function DuelPlayPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isSubmitting || !currentChallenge || !user || !duelRef) return;
+    if (!inputValue.trim() || isSubmitting || !currentChallenge || !currentChallenge.solutionWord || !user || !duelRef) return;
 
     setIsSubmitting(true);
     const cleanedInput = inputValue.trim().toUpperCase();
@@ -296,7 +298,7 @@ export default function DuelPlayPage() {
         <div className="section-center">
             <div className="section-path"><div className="globe"><div className="wrapper"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div></div>
         </div>
-        <p className="text-lg pt-24">Chargement du duel...</p>
+        <p className="text-lg pt-24">{t('loading_duel')}</p>
       </div>
     );
   }
@@ -316,16 +318,16 @@ export default function DuelPlayPage() {
       <div className="relative flex min-h-screen flex-col items-center justify-center">
         <SiteHeader />
         <main className="flex-1 flex flex-col items-center justify-center text-center p-4">
-            <h1 className="text-4xl font-bold text-primary mb-4">Partie terminée !</h1>
+            <h1 className="text-4xl font-bold text-primary mb-4">{t('game_over')}</h1>
             {isTie ? (
                 <>
                     <Swords className="h-24 w-24 text-muted-foreground my-8"/>
-                    <p className="text-2xl mb-4">Égalité !</p>
+                    <p className="text-2xl mb-4">{t('tie_game')}</p>
                 </>
             ) : winner ? (
                 <>
                     <Crown className="h-24 w-24 text-yellow-400 my-8 animate-bounce"/>
-                    <p className="text-2xl mb-4">Le vainqueur est...</p>
+                    <p className="text-2xl mb-4">{t('winner_is')}</p>
                     <div className="flex flex-col items-center gap-2">
                         <Avatar className="h-32 w-32 border-4 border-primary">
                             <AvatarImage src={winner?.photoURL} alt={winner?.displayName} />
@@ -335,12 +337,12 @@ export default function DuelPlayPage() {
                     </div>
                 </>
             ) : (
-                 <p className="text-2xl my-8">Un joueur a quitté la partie.</p>
+                 <p className="text-2xl my-8">{t('player_left_game')}</p>
             )}
 
             <Card className="mt-8 w-full max-w-sm">
               <CardHeader>
-                <CardTitle>Tableau des scores</CardTitle>
+                <CardTitle>{t('score_board')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                  {(duelData.players.length > 0 ? duelData.players : [me, otherPlayer].filter(Boolean)).map(p => (
@@ -359,7 +361,7 @@ export default function DuelPlayPage() {
                     .filter(uid => !duelData.players.some(p => p.uid === uid) && (me?.uid === uid || otherPlayer?.uid === uid))
                     .map(uid => (
                       <div key={uid} className="flex justify-between items-center opacity-50">
-                          <span className="font-semibold italic">Joueur déconnecté</span>
+                          <span className="font-semibold italic">{t('disconnected_player')}</span>
                           <span className="font-bold text-xl text-primary">{duelData.playerScores[uid] || 0}</span>
                       </div>
                     ))
@@ -368,7 +370,7 @@ export default function DuelPlayPage() {
             </Card>
 
             <Button onClick={() => router.push('/duel')} className="mt-12">
-                Retour au lobby des duels
+                {t('back_to_duel_lobby')}
             </Button>
         </main>
       </div>
@@ -404,23 +406,23 @@ export default function DuelPlayPage() {
                       <span className="font-bold text-lg text-foreground mix-blend-difference">{opponentScore}</span>
                   </div>
               </div>
-              <p className="text-xl font-bold text-muted-foreground">Temps restant : {formatTime(timeLeft)}</p>
+              <p className="text-xl font-bold text-muted-foreground">{t('time_remaining')} : {formatTime(timeLeft)}</p>
             </div>
             
             {!currentChallenge ? (
                 <Card>
                     <CardHeader>
-                        <CardTitle>En attente du prochain défi</CardTitle>
+                        <CardTitle>{t('waiting_for_challenge')}</CardTitle>
                     </CardHeader>
                     <CardContent className='flex justify-center items-center p-8'>
                         {user?.uid === duelData.hostId ? (
                             <Button onClick={getNewChallenge} disabled={isGenerating}>
-                                {isGenerating ? <Loader2 className='animate-spin'/> : "Démarrer"}
+                                {isGenerating ? <Loader2 className='animate-spin'/> : t('start_game')}
                             </Button>
                         ) : (
                             <div className='flex items-center gap-3 text-muted-foreground'>
                                 <Loader2 className="animate-spin"/>
-                                <p>L'hôte prépare le prochain défi...</p>
+                                <p>{t('host_is_preparing')}</p>
                             </div>
                         )}
                     </CardContent>
@@ -430,7 +432,7 @@ export default function DuelPlayPage() {
                      <Card>
                         <CardHeader className="text-center">
                             <CardTitle className="text-2xl font-semibold">
-                            Défi : {currentChallenge.description}
+                            {t('challenge')}: {currentChallenge.description}
                             </CardTitle>
                         </CardHeader>
                     </Card>
@@ -438,7 +440,7 @@ export default function DuelPlayPage() {
                     <div className="flex justify-center mb-2">
                         <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || !currentChallenge.hint}>
                             <Lightbulb className="mr-2 h-4 w-4" />
-                            Indice (-2 points)
+                            {t('hint_penalty')}
                         </Button>
                     </div>
                     
@@ -451,11 +453,13 @@ export default function DuelPlayPage() {
                                 </Button>
                             </div>
 
-                            <LetterGrid letters={currentChallenge.jumbledLetters || []} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting} />
+                            {currentChallenge.jumbledLetters && (
+                                <LetterGrid letters={currentChallenge.jumbledLetters || []} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting} />
+                            )}
 
                             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentChallenge || !currentChallenge.solutionWord || inputValue.length !== currentChallenge.solutionWord.length}>
                                 {isSubmitting && <Loader2 className="animate-spin mr-2" />}
-                                Valider
+                                {t('submit')}
                                 {!isSubmitting && <ArrowRight className="ml-2" />}
                             </Button>
                         </form>
@@ -467,5 +471,3 @@ export default function DuelPlayPage() {
     </div>
   );
 }
-
-    

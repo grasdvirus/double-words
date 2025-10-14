@@ -3,7 +3,7 @@
 
 import React, { createContext, useState, useCallback, ReactNode, useContext } from 'react';
 
-interface NotificationDetails {
+export interface NotificationDetails {
   title: string;
   message: string;
   type: 'error' | 'success' | 'info';
@@ -16,7 +16,7 @@ interface NotificationState extends NotificationDetails {
 
 interface NotificationContextType {
   notification: NotificationState | null;
-  showNotification: (details: NotificationDetails) => void;
+  showNotification: (details: Omit<NotificationDetails, 'title'|'message'> & { title: string; message: string }) => void;
   hideNotification: () => void;
 }
 

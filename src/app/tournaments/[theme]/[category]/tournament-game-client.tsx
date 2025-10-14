@@ -17,6 +17,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useNotification } from "@/contexts/notification-context";
+import { useTranslations } from "@/hooks/use-translations";
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -44,6 +45,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   const { user } = useUser();
   const firestore = useFirestore();
   const { score, updateScore } = useGame();
+  const t = useTranslations();
   
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,7 +156,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
       setMaxLevel(max);
       setupLevel(level);
     } else {
-      showNotification({ title: "Erreur", message: "Ce tournoi n'existe pas.", type: 'error'});
+      showNotification({ title: t('error'), message: "This tournament does not exist.", type: 'error'});
     }
     setIsInitialLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -208,8 +210,8 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
 
   const showHint = () => {
     showNotification({
-      title: "Indice",
-      message: "Pas d'indice dans ce mode, vous êtes un pro !",
+      title: t('hint'),
+      message: t('no_hint_in_tournament'),
       type: 'info',
     });
   };
@@ -322,7 +324,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
                 </div>
             </div>
         </div>
-        <p className="mt-4 text-muted-foreground pt-24">Préparation du tournoi...</p>
+        <p className="mt-4 text-muted-foreground pt-24">{t('preparing_tournament')}</p>
       </div>
     )
   }
@@ -330,12 +332,12 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   if (!currentLevelData) {
     return (
          <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1 text-center">
-            <h2 className="text-2xl font-bold text-primary mb-4">Tournoi terminé !</h2>
+            <h2 className="text-2xl font-bold text-primary mb-4">{t('tournament_finished_title')}</h2>
             <p className="text-muted-foreground mb-8">
-                Bravo, vous avez trouvé tous les mots de cette catégorie. Votre score final a été enregistré.
+                {t('tournament_finished_description')}
             </p>
             <Button asChild>
-                <Link href="/tournaments">Retour aux tournois</Link>
+                <Link href="/tournaments">{t('back_to_tournaments')}</Link>
             </Button>
         </div>
     )
@@ -351,7 +353,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
           <CardHeader className="text-center">
             <div className="flex justify-between items-center mb-2">
               <div className="text-left">
-                <p className="text-sm text-muted-foreground">Niveau</p>
+                <p className="text-sm text-muted-foreground">{t('level')}</p>
                 <p key={`level-${levelKey}`} className="text-2xl font-bold text-primary animate-pop-in">{level} / {maxLevel}</p>
               </div>
                <div className="flex flex-col items-center">
@@ -359,12 +361,12 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
                  <p className="text-2xl font-bold text-primary">{Math.ceil(timeRemaining)}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Score</p>
+                <p className="text-sm text-muted-foreground">{t('score')}</p>
                 <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
               </div>
             </div>
              <CardTitle className="text-2xl font-semibold">
-              Défi : {currentLevelData?.description}
+              {t('challenge')}: {currentLevelData?.description}
             </CardTitle>
             <Progress value={progressPercentage} className="w-full mt-4" />
           </CardHeader>
@@ -373,7 +375,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
         <div className="flex justify-center mb-2">
             <Button variant="outline" size="sm" onClick={showHint} disabled={true}>
                 <Lightbulb className="mr-2 h-4 w-4" />
-                Indice
+                {t('hint')}
             </Button>
         </div>
         
@@ -386,7 +388,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
                 </Button>
             </div>
 
-            {currentLevelData?.jumbledLetters.length === 0 ? (
+            {currentLevelData?.jumbledLetters && currentLevelData?.jumbledLetters.length === 0 ? (
                 <div className="flex justify-center items-center p-8">
                     <div className="section-center scale-50">
                         <div className="section-path">
@@ -405,7 +407,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
                 <LetterGrid letters={currentLevelData?.jumbledLetters || []} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp || showLevelComplete} />
             )}
 
-             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentLevelData || inputValue.length !== currentLevelData.solutionWord.length || showTimeUp || showLevelComplete}>
+             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentLevelData || !currentLevelData.solutionWord || inputValue.length !== currentLevelData.solutionWord.length || showTimeUp || showLevelComplete}>
               {isSubmitting && (
                 <div className="section-center scale-50 -translate-y-8">
                     <div className="section-path">
@@ -421,7 +423,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
                 </div>
               )}
               <ArrowRight className="mr-2" />
-              Valider
+              {t('submit')}
             </Button>
           </form>
         </div>

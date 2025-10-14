@@ -9,18 +9,20 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useUser, useAuth } from '@/firebase';
 import { signInWithGoogle } from '@/firebase/auth';
 import { useNotification } from '@/contexts/notification-context';
+import { useTranslations } from '@/hooks/use-translations';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const { showNotification } = useNotification();
+  const t = useTranslations();
 
   const handleSignIn = async () => {
     if (!auth) {
       console.error("L'instance d'authentification Firebase n'est pas prête.");
       showNotification({
-        title: "Erreur",
-        message: "Le service d'authentification n'est pas disponible.",
+        title: t('auth_error'),
+        message: t('auth_service_error'),
         type: 'error'
       });
       return;
@@ -31,8 +33,8 @@ export default function Home() {
       console.error("Erreur de connexion Google :", error);
       if (error.code !== 'auth/popup-closed-by-user') {
         showNotification({
-          title: "Erreur de connexion",
-          message: "Impossible de se connecter avec Google. Veuillez réessayer.",
+          title: t('auth_error'),
+          message: t('auth_error_message'),
           type: 'error'
         });
       }
@@ -44,21 +46,21 @@ export default function Home() {
       <FloatingLettersBackground />
       <div className="z-10 text-center p-4 w-full max-w-3xl mx-auto">
         <h1 className="text-6xl md:text-8xl font-bold text-primary font-headline tracking-tighter mb-4 animate-fade-in-down">
-          DOUBLE WORDS
+          {t('home_title')}
         </h1>
         <p className="text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto mb-8 animate-fade-in-up">
-          Le jeu où les lettres se répètent, mais jamais les idées.
+          {t('home_subtitle')}
         </p>
 
         {!user && !isUserLoading && (
            <Alert className="mb-8 text-left max-w-md mx-auto animate-fade-in-up [animation-delay:0.2s]">
             <UserPlus className="h-4 w-4" />
-            <AlertTitle>Connectez-vous !</AlertTitle>
+            <AlertTitle>{t('home_connect_alert_title')}</AlertTitle>
             <AlertDescription className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <span>Votre score n'apparaîtra pas dans le classement.</span>
+              <span>{t('home_connect_alert_description')}</span>
               <Button size="sm" onClick={handleSignIn} className="flex-shrink-0">
                 <LogIn className="mr-2 h-4 w-4" />
-                Connexion
+                {t('connect')}
               </Button>
             </AlertDescription>
           </Alert>
@@ -85,42 +87,42 @@ export default function Home() {
           <Button asChild size="lg" className="w-full">
             <Link href="/play">
               <Trophy className="mr-2" />
-              Mode Défi
+              {t('challenge_mode')}
             </Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="w-full">
             <Link href="/play">
               <Swords className="mr-2" />
-              Entraînement
+              {t('training_mode')}
             </Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="w-full">
             <Link href="/duel">
               <Users className="mr-2" />
-              Duel (2J)
+              {t('duel_mode')}
             </Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="w-full sm:col-span-1 lg:col-auto">
             <Link href="/tournaments">
               <Calendar className="mr-2" />
-              Tournois
+              {t('tournaments_mode')}
             </Link>
           </Button>
         </div>
 
         <div className="flex justify-center gap-2 mt-4 animate-fade-in-up [animation-delay:0.6s]">
             <Button asChild variant="ghost" size="icon">
-              <Link href="/rules" aria-label="Règles du jeu">
+              <Link href="/rules" aria-label={t('rules')}>
                 <BookOpen />
               </Link>
             </Button>
             <Button asChild variant="ghost" size="icon">
-              <Link href="/leaderboard" aria-label="Classement">
+              <Link href="/leaderboard" aria-label={t('leaderboard')}>
                 <Trophy />
               </Link>
             </Button>
             <Button asChild variant="ghost" size="icon">
-              <Link href="/settings" aria-label="Paramètres">
+              <Link href="/settings" aria-label={t('settings')}>
                 <Settings />
               </Link>
             </Button>

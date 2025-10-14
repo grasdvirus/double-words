@@ -11,10 +11,18 @@ import { ArrowLeft, Eraser } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { useRouter } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { useTranslations } from "@/hooks/use-translations";
 
 export default function SettingsPage() {
   const { settings, updateSettings, resetProgress } = useGame();
   const router = useRouter();
+  const t = useTranslations();
+
+  const handleReset = () => {
+    if(window.confirm(t('reset_progress_confirm'))) {
+      resetProgress();
+    }
+  }
 
   return (
     <div className="relative flex min-h-screen flex-col">
@@ -29,16 +37,16 @@ export default function SettingsPage() {
                 className="absolute left-0 top-1/2 -translate-y-1/2 animate-fade-in-up"
             >
                 <ArrowLeft className="mr-2 h-4 w-4"/>
-                Retour
+                {t('back')}
             </Button>
-            <h1 className="text-4xl font-bold text-primary">Paramètres</h1>
+            <h1 className="text-4xl font-bold text-primary">{t('settings_title')}</h1>
           </div>
 
           <div className="space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle>Thème</CardTitle>
-                <CardDescription>Choisissez votre apparence préférée.</CardDescription>
+                <CardTitle>{t('theme_title')}</CardTitle>
+                <CardDescription>{t('theme_description')}</CardDescription>
               </CardHeader>
               <CardContent className="flex justify-center">
                 <ThemeSwitcher />
@@ -47,12 +55,12 @@ export default function SettingsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Jeu</CardTitle>
-                <CardDescription>Gérez les options de langue et de son.</CardDescription>
+                <CardTitle>{t('game_title')}</CardTitle>
+                <CardDescription>{t('game_description')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="language-select">Langue</Label>
+                  <Label htmlFor="language-select">{t('language')}</Label>
                   <Select
                     value={settings.language}
                     onValueChange={(value: 'FR' | 'EN') => updateSettings({ language: value })}
@@ -61,13 +69,13 @@ export default function SettingsPage() {
                       <SelectValue placeholder="Langue" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="FR">Français</SelectItem>
-                      <SelectItem value="EN">English</SelectItem>
+                      <SelectItem value="FR">{t('language_fr')}</SelectItem>
+                      <SelectItem value="EN">{t('language_en')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="sound-switch">Effets sonores</Label>
+                  <Label htmlFor="sound-switch">{t('sound_effects')}</Label>
                   <Switch
                     id="sound-switch"
                     checked={settings.enableSound}
@@ -79,13 +87,13 @@ export default function SettingsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Progression</CardTitle>
-                <CardDescription>Attention, cette action est irréversible. Elle réinitialisera votre niveau et votre score localement.</CardDescription>
+                <CardTitle>{t('progression_title')}</CardTitle>
+                <CardDescription>{t('progression_description')}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="destructive" onClick={resetProgress}>
+                <Button variant="destructive" onClick={handleReset}>
                   <Eraser className="mr-2 h-4 w-4" />
-                  Réinitialiser la progression
+                  {t('reset_progression')}
                 </Button>
               </CardContent>
             </Card>

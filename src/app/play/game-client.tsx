@@ -18,6 +18,7 @@ import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { gameLevels } from "@/lib/game-levels";
 import { useNotification } from "@/contexts/notification-context";
+import { useTranslations } from "@/hooks/use-translations";
 
 
 const LEVEL_TIME = 60; // 60 seconds per level
@@ -51,6 +52,8 @@ export function GameClient() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { level, score, updateScore, nextLevel, history, addWordToHistory, settings } = useGame();
+  const t = useTranslations();
+
   const [inputValue, setInputValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
@@ -152,10 +155,10 @@ export function GameClient() {
       };
 
     } catch(e) {
-        showNotification({ title: "Erreur", message: "Impossible de générer le niveau.", type: 'error'});
+        showNotification({ title: t('error'), message: t('level_generation_error'), type: 'error'});
         return null;
     }
-  }, [settings.language, showNotification]);
+  }, [settings.language, showNotification, t]);
 
   const setupLevel = useCallback((data: LevelData | null, isRetry = false) => {
     if (!data) return;
@@ -243,7 +246,7 @@ export function GameClient() {
   const showHint = () => {
     if (currentLevelData?.hint && !showTimeUp) {
       showNotification({
-        title: "Indice",
+        title: t('hint'),
         message: currentLevelData.hint,
         type: 'info',
         duration: 'persistent',
@@ -393,7 +396,7 @@ export function GameClient() {
                 </div>
             </div>
         </div>
-        <p className="mt-4 text-muted-foreground pt-24">Préparation du niveau...</p>
+        <p className="mt-4 text-muted-foreground pt-24">{t('preparing_level')}</p>
       </div>
     )
   }
@@ -406,7 +409,7 @@ export function GameClient() {
           <CardHeader className="text-center">
             <div className="flex justify-between items-center mb-2">
               <div className="text-left">
-                <p className="text-sm text-muted-foreground">Niveau</p>
+                <p className="text-sm text-muted-foreground">{t('level')}</p>
                 <p key={`level-${levelKey}`} className="text-2xl font-bold text-primary animate-pop-in">{level}</p>
               </div>
                <div className="flex flex-col items-center">
@@ -414,12 +417,12 @@ export function GameClient() {
                  <p className="text-2xl font-bold text-primary">{Math.ceil(timeRemaining)}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Score</p>
+                <p className="text-sm text-muted-foreground">{t('score')}</p>
                 <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
               </div>
             </div>
             <CardTitle className="text-2xl font-semibold">
-              Défi : {currentLevelData?.description}
+              {t('challenge')}: {currentLevelData?.description}
             </CardTitle>
             <Progress value={progressPercentage} className="w-full mt-4" />
           </CardHeader>
@@ -428,7 +431,7 @@ export function GameClient() {
         <div className="flex justify-center mb-2">
             <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || showTimeUp || showLevelComplete}>
                 <Lightbulb className="mr-2 h-4 w-4" />
-                Indice (-2 points)
+                {t('hint_penalty')}
             </Button>
         </div>
         
@@ -441,7 +444,7 @@ export function GameClient() {
                 </Button>
             </div>
 
-            {currentLevelData?.jumbledLetters.length === 0 ? (
+            {currentLevelData?.jumbledLetters && currentLevelData?.jumbledLetters.length === 0 ? (
                 <div className="flex justify-center items-center p-8">
                      <div className="section-center scale-50">
                         <div className="section-path">
@@ -460,7 +463,7 @@ export function GameClient() {
                 <LetterGrid letters={currentLevelData?.jumbledLetters || []} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || showTimeUp || showLevelComplete} />
             )}
 
-             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentLevelData || inputValue.length !== currentLevelData.solutionWord.length || showTimeUp || showLevelComplete}>
+             <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentLevelData || !currentLevelData.solutionWord || inputValue.length !== currentLevelData.solutionWord.length || showTimeUp || showLevelComplete}>
               {(isSubmitting || !currentLevelData) && (
                  <div className="section-center scale-50 -translate-y-8">
                     <div className="section-path">
@@ -476,7 +479,7 @@ export function GameClient() {
                 </div>
               )}
               <ArrowRight className="mr-2" />
-              Valider
+              {t('submit')}
             </Button>
           </form>
         </div>

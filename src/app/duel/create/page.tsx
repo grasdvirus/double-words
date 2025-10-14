@@ -15,6 +15,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { useNotification } from '@/contexts/notification-context';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTranslations } from '@/hooks/use-translations';
 
 function generateGameCode(): string {
   const chars = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
@@ -30,6 +31,7 @@ export default function CreateDuelPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { showNotification } = useNotification();
+  const t = useTranslations();
   
   const [duration, setDuration] = useState<string>("2");
   const [gameCode, setGameCode] = useState<string | null>(null);
@@ -40,8 +42,8 @@ export default function CreateDuelPage() {
   const handleCreateDuel = () => {
     if (!user || !firestore) {
       showNotification({
-        title: 'Connexion requise',
-        message: 'Vous devez être connecté pour créer un duel.',
+        title: t('auth_required'),
+        message: t('auth_required_message'),
         type: 'error'
       });
       router.push('/duel');
@@ -115,8 +117,8 @@ export default function CreateDuelPage() {
     if (gameCode) {
       navigator.clipboard.writeText(gameCode);
       showNotification({
-        title: 'Copié !',
-        message: 'Le code de la partie a été copié dans le presse-papiers.',
+        title: t('copied'),
+        message: t('copied_message'),
         type: 'success'
       });
     }
@@ -130,7 +132,7 @@ export default function CreateDuelPage() {
                 <div className="globe"><div className="wrapper"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div>
             </div>
         </div>
-        <p className="text-lg pt-24">Création de la partie...</p>
+        <p className="text-lg pt-24">{t('creating_game')}</p>
       </div>
     );
   }
@@ -141,12 +143,12 @@ export default function CreateDuelPage() {
             <SiteHeader />
             <main className="flex-1">
                 <div className="container py-8 max-w-2xl mx-auto animate-fade-in text-center">
-                <h1 className="text-4xl font-bold text-primary mb-2">Salle d'attente</h1>
-                <p className="text-muted-foreground mb-8">Partagez ce code avec un ami pour qu'il vous rejoigne.</p>
+                <h1 className="text-4xl font-bold text-primary mb-2">{t('waiting_room_title')}</h1>
+                <p className="text-muted-foreground mb-8">{t('waiting_room_description')}</p>
 
                     <Card className="mb-8">
                         <CardHeader>
-                            <CardTitle>Code de la partie</CardTitle>
+                            <CardTitle>{t('game_code')}</CardTitle>
                         </CardHeader>
                         <CardContent className="flex items-center justify-center gap-4">
                             <p className="text-5xl font-bold tracking-widest text-primary font-mono">{gameCode}</p>
@@ -160,7 +162,7 @@ export default function CreateDuelPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center justify-center gap-3">
                                 <Users className="h-6 w-6" />
-                                Joueurs connectés
+                                {t('connected_players')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex justify-center items-center gap-8">
@@ -180,7 +182,7 @@ export default function CreateDuelPage() {
                                         <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
                                         </div>
                                 </div>
-                                <p>En attente...</p>
+                                <p>{t('waiting_for_player')}</p>
                                 </div>
                             )}
                         </CardContent>
@@ -196,38 +198,38 @@ export default function CreateDuelPage() {
       <SiteHeader />
       <main className="flex-1">
         <div className="container py-8 max-w-2xl mx-auto animate-fade-in">
-           <h1 className="text-4xl font-bold text-primary mb-8 text-center">Créer un Duel</h1>
+           <h1 className="text-4xl font-bold text-primary mb-8 text-center">{t('create_duel_title')}</h1>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Options de la partie</CardTitle>
-                    <CardDescription>Configurez la durée du duel avant d'inviter un ami.</CardDescription>
+                    <CardTitle>{t('game_options')}</CardTitle>
+                    <CardDescription>{t('game_options_description')}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="duration-select" className="flex items-center gap-2">
                         <Clock className="h-5 w-5"/>
-                        Durée
+                        {t('duration')}
                       </Label>
                       <Select
                         value={duration}
                         onValueChange={(value) => setDuration(value)}
                       >
                         <SelectTrigger id="duration-select" className="w-[180px]">
-                          <SelectValue placeholder="Durée" />
+                          <SelectValue placeholder={t('duration_placeholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">1 minute</SelectItem>
-                          <SelectItem value="2">2 minutes</SelectItem>
-                          <SelectItem value="3">3 minutes</SelectItem>
-                          <SelectItem value="4">4 minutes</SelectItem>
-                          <SelectItem value="5">5 minutes</SelectItem>
+                          <SelectItem value="1">{t('1_minute')}</SelectItem>
+                          <SelectItem value="2">{t('2_minutes')}</SelectItem>
+                          <SelectItem value="3">{t('3_minutes')}</SelectItem>
+                          <SelectItem value="4">{t('4_minutes')}</SelectItem>
+                          <SelectItem value="5">{t('5_minutes')}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                      <Button onClick={handleCreateDuel} className="w-full" disabled={isUserLoading}>
                         <Play className="mr-2 h-4 w-4"/>
-                        Créer la partie et obtenir le code
+                        {t('create_game_button')}
                     </Button>
                 </CardContent>
             </Card>

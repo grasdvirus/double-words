@@ -1,15 +1,16 @@
 
-
 'use client';
 
 import { SiteHeader } from "@/components/site-header";
 import { LeaderboardClient } from "./leaderboard-client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/hooks/use-translations";
 
 export default function LeaderboardPage() {
   const router = useRouter();
+  const t = useTranslations();
 
   return (
     <div className="relative flex min-h-screen flex-col">
@@ -23,10 +24,11 @@ export default function LeaderboardPage() {
                     className="absolute left-0 top-1/2 -translate-y-1/2 animate-fade-in-up"
                 >
                     <ArrowLeft className="mr-2 h-4 w-4"/>
-                    Retour
+                    {t('back')}
                 </Button>
                 <h1 className="text-4xl font-bold text-primary flex items-center justify-center gap-4">
-                    Classement
+                    <Trophy className="h-8 w-8" />
+                    {t('leaderboard_title')}
                 </h1>
             </div>
             <LeaderboardClient />

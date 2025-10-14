@@ -8,6 +8,7 @@ import { useCollection, useFirestore } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMemoFirebase } from "@/firebase/provider";
+import { useTranslations } from "@/hooks/use-translations";
 
 interface Player {
   id: string;
@@ -25,6 +26,7 @@ const getTier = (score: number) => {
 
 export function LeaderboardClient() {
   const firestore = useFirestore();
+  const t = useTranslations();
   const leaderboardQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, "leaderboard"), orderBy("score", "desc"), limit(10));
@@ -35,7 +37,7 @@ export function LeaderboardClient() {
   return (
     <Card>
         <CardHeader>
-          <CardTitle>Top 10 des Joueurs</CardTitle>
+          <CardTitle>{t('leaderboard_top10')}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -57,10 +59,10 @@ export function LeaderboardClient() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px] text-center">Rang</TableHead>
-                  <TableHead>Joueur</TableHead>
-                  <TableHead className="hidden md:table-cell">Niveau</TableHead>
-                  <TableHead className="text-right">Score</TableHead>
+                  <TableHead className="w-[80px] text-center">{t('rank')}</TableHead>
+                  <TableHead>{t('player')}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t('tier')}</TableHead>
+                  <TableHead className="text-right">{t('score')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

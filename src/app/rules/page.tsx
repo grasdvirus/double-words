@@ -7,9 +7,11 @@ import { CheckCircle, XCircle, Award, Star, TrendingUp, Gem, Trophy, ArrowLeft }
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/hooks/use-translations";
 
 export default function RulesPage() {
   const router = useRouter();
+  const t = useTranslations();
 
   return (
     <div className="relative flex min-h-screen flex-col">
@@ -24,67 +26,67 @@ export default function RulesPage() {
                 className="absolute left-0 top-1/2 -translate-y-1/2 animate-fade-in-up"
             >
                 <ArrowLeft className="mr-2 h-4 w-4"/>
-                Retour
+                {t('back')}
             </Button>
-            <h1 className="text-4xl font-bold text-primary">Règles du jeu</h1>
+            <h1 className="text-4xl font-bold text-primary">{t('rules_title')}</h1>
           </div>
           
           <div className="space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle>Le But du Jeu</CardTitle>
+                <CardTitle>{t('rules_goal_title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-lg">
-                  À chaque niveau, vous devez trouver le mot secret à partir des lettres mélangées. Le mot doit également respecter la contrainte du défi (par exemple, contenir "CH").
+                  {t('rules_goal_text')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Comment Jouer ?</CardTitle>
+                <CardTitle>{t('rules_how_to_play_title')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p>1. Lisez la consigne du niveau ("Défi") affichée en haut de l'écran.</p>
-                <p>2. Utilisez les lettres disponibles dans la grille pour former votre mot dans les cases.</p>
-                <p>3. Si vous vous trompez, utilisez le bouton retour pour effacer la dernière lettre.</p>
-                <p>4. Une fois le mot complet, cliquez sur "Valider" pour soumettre votre réponse.</p>
-                <p>5. Attention, vous avez 60 secondes pour trouver le mot !</p>
+                <p>{t('rules_how_to_play_1')}</p>
+                <p>{t('rules_how_to_play_2')}</p>
+                <p>{t('rules_how_to_play_3')}</p>
+                <p>{t('rules_how_to_play_4')}</p>
+                <p>{t('rules_how_to_play_5')}</p>
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader>
-                <CardTitle>Système de Points</CardTitle>
+                <CardTitle>{t('rules_scoring_title')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4">
                   <CheckCircle className="text-accent h-6 w-6" />
                   <div>
-                    <h3 className="font-semibold">Bonne réponse : +10 points</h3>
-                    <p className="text-sm text-muted-foreground">Vous avez trouvé le mot secret.</p>
+                    <h3 className="font-semibold">{t('rules_scoring_correct')}</h3>
+                    <p className="text-sm text-muted-foreground">{t('rules_scoring_correct_desc')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <Star className="text-primary h-6 w-6" />
                   <div>
-                    <h3 className="font-semibold">Bonus d'Originalité : +5 points</h3>
-                    <p className="text-sm text-muted-foreground">Ce bonus est accordé si l'IA juge votre réponse originale (non utilisé dans la version actuelle).</p>
+                    <h3 className="font-semibold">{t('rules_scoring_bonus')}</h3>
+                    <p className="text-sm text-muted-foreground">{t('rules_scoring_bonus_desc')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <TrendingUp className="text-blue-500 h-6 w-6" />
                   <div>
-                    <h3 className="font-semibold">Bonus Temps : jusqu'à +6 points</h3>
-                    <p className="text-sm text-muted-foreground">Plus vous êtes rapide, plus vous gagnez de points.</p>
+                    <h3 className="font-semibold">{t('rules_scoring_time')}</h3>
+                    <p className="text-sm text-muted-foreground">{t('rules_scoring_time_desc')}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <XCircle className="text-destructive h-6 w-6" />
                   <div>
-                    <h3 className="font-semibold">Erreur / Temps écoulé : -5 / -10 points</h3>
-                    <p className="text-sm text-muted-foreground">Une mauvaise réponse ou le temps écoulé vous pénalise.</p>
+                    <h3 className="font-semibold">{t('rules_scoring_error')}</h3>
+                    <p className="text-sm text-muted-foreground">{t('rules_scoring_error_desc')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -92,23 +94,23 @@ export default function RulesPage() {
             
             <Card>
               <CardHeader>
-                <CardTitle>Progression</CardTitle>
+                <CardTitle>{t('rules_progression_title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p>
-                  Les niveaux sont illimités ! Les défis changent à chaque niveau pour garder le jeu intéressant. Votre progression est sauvegardée localement, vous pouvez donc reprendre là où vous vous êtes arrêté.
+                  {t('rules_progression_text')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Classement</CardTitle>
+                <CardTitle>{t('rules_leaderboard_title')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-4">
                   <Trophy className="text-yellow-500 h-6 w-6" />
-                  <p>Connectez-vous avec votre compte Google pour que votre score soit enregistré et apparaisse dans le classement des meilleurs joueurs !</p>
+                  <p>{t('rules_leaderboard_text')}</p>
                 </div>
               </CardContent>
             </Card>

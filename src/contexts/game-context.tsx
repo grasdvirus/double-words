@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -95,9 +96,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetProgress = useCallback(() => {
-    if(window.confirm("Êtes-vous sûr de vouloir réinitialiser votre progression ? Votre score et votre niveau seront réinitialisés.")) {
-      setGameState(prev => ({...defaultState, settings: prev.settings}));
-    }
+    // Note: The confirmation text is now handled by useTranslations in the component
+    setGameState(prev => ({...defaultState, settings: prev.settings}));
   }, []);
 
   const updateSettings = useCallback((newSettings: Partial<GameSettings>) => {
