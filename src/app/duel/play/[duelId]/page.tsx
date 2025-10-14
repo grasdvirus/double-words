@@ -9,7 +9,7 @@ import { doc, updateDoc, serverTimestamp, deleteDoc, Timestamp } from 'firebase/
 import { useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Swords, Check, X, Loader2, Crown, ArrowRight, Undo2, Lightbulb } from 'lucide-react';
+import { Swords, Check, X, Loader2, Crown, ArrowRight, Undo2, Lightbulb, Key } from 'lucide-react';
 import { generateDuelChallenge } from '@/ai/flows/generate-duel-challenge';
 import { Button } from '@/components/ui/button';
 import { LetterGrid } from '@/components/letter-grid';
@@ -52,6 +52,10 @@ export default function DuelPlayPage() {
   const [isWrong, setIsWrong] = useState(false);
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+
+  const [revealedIndexes, setRevealedIndexes] = useState<number[]>([]);
+  const [revealCount, setRevealCount] = useState(0);
+  const [isRevealOnCooldown, setIsRevealOnCooldown] = useState(false);
   
   const currentChallenge = duelData?.currentChallenge;
   
@@ -146,31 +150,11 @@ export default function DuelPlayPage() {
         if (!duelData || !user || !duelRef || duelData.status !== 'active') return;
 
         try {
-            // This is a synchronous operation but we fire and forget the update
             const newStatus = {
                 status: 'abandoned',
                 winnerId: duelData.players.find((p: any) => p.uid !== user.uid)?.uid || null,
                 endedAt: serverTimestamp(),
             };
-            // This will try to update, but might not succeed if the page closes too fast.
-            // Firestore's offline persistence can help.
-            if (navigator.sendBeacon) {
-                // Use sendBeacon for a more reliable way to send data on unload
-                const blob = new Blob([JSON.stringify({
-                    writes: [{
-                        update: {
-                            name: duelRef.path,
-                            fields: {
-                                status: { stringValue: 'abandoned' },
-                                winnerId: { stringValue: newStatus.winnerId },
-                                // serverTimestamp cannot be sent via beacon
-                            }
-                        }
-                    }]
-                })], { type: 'application/json' });
-                // This requires a backend endpoint to process the raw write.
-                // For simplicity, we'll stick with a direct update attempt.
-            }
              await updateDoc(duelRef, newStatus);
         } catch (error) {
             console.error("Error handling player leaving:", error);
@@ -199,6 +183,8 @@ export default function DuelPlayPage() {
         setInputValue("");
         const letterCount = currentChallenge.jumbledLetters?.length || 0;
         setDisabledLetterIndexes(new Array(letterCount).fill(false));
+        setRevealedIndexes([]);
+        setRevealCount(0);
     }
   }, [currentChallenge]);
 
@@ -218,6 +204,16 @@ export default function DuelPlayPage() {
     const lastChar = inputValue[inputValue.length - 1];
     setInputValue((prev) => prev.slice(0, -1));
 
+    // Do not re-enable letters that were revealed
+    const lastCharRevealedIndex = revealedIndexes.find(idx => 
+      inputValue.slice(0, -1).charAt(idx) !== currentChallenge.solutionWord.charAt(idx) &&
+      currentChallenge.solutionWord.charAt(idx) === lastChar
+    );
+
+    if (typeof lastCharRevealedIndex !== 'undefined') {
+       return;
+    }
+    
     let reEnabled = false;
     for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
         if(currentChallenge.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
@@ -246,6 +242,54 @@ export default function DuelPlayPage() {
         }
       };
 
+    const handleRevealLetter = async () => {
+        if (!currentChallenge || !user || !duelRef || revealCount >= 3 || isRevealOnCooldown) return;
+
+        const solution = currentChallenge.solutionWord;
+        let indexToReveal = -1;
+
+        // Find the first letter in the solution that hasn't been correctly guessed or revealed yet
+        for (let i = 0; i < solution.length; i++) {
+            if (inputValue[i] !== solution[i] && !revealedIndexes.includes(i)) {
+                indexToReveal = i;
+                break;
+            }
+        }
+
+        if (indexToReveal === -1) return; // Word is already correct or fully revealed
+
+        const letterToReveal = solution[indexToReveal];
+
+        // Create new input value
+        const newInputValue = inputValue.substring(0, indexToReveal) + letterToReveal + inputValue.substring(indexToReveal + 1);
+        setInputValue(newInputValue);
+        
+        // Update revealed indexes
+        setRevealedIndexes(prev => [...prev, indexToReveal]);
+
+        // Disable the used jumbled letter
+        const jumbledIndexToDisable = disabledLetterIndexes.findIndex((disabled, i) => 
+            !disabled && currentChallenge.jumbledLetters[i] === letterToReveal
+        );
+        if (jumbledIndexToDisable !== -1) {
+            setDisabledLetterIndexes(prev => {
+                const newDisabled = [...prev];
+                newDisabled[jumbledIndexToDisable] = true;
+                return newDisabled;
+            });
+        }
+
+        // Apply penalty and cooldown
+        const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 3);
+        await updateDoc(duelRef, {
+            [`playerScores.${user.uid}`]: newPoints,
+        });
+
+        setRevealCount(prev => prev + 1);
+        setIsRevealOnCooldown(true);
+        setTimeout(() => setIsRevealOnCooldown(false), 5000); // 5-second cooldown
+    };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isSubmitting || !currentChallenge || !currentChallenge.solutionWord || !user || !duelRef) return;
@@ -260,6 +304,7 @@ export default function DuelPlayPage() {
         setInputValue("");
         if(currentChallenge && currentChallenge.jumbledLetters) {
             setDisabledLetterIndexes(new Array(currentChallenge.jumbledLetters.length).fill(false));
+            setRevealedIndexes([]);
         }
       }, 800);
       setTimeout(() => setIsSubmitting(false), 820);
@@ -450,10 +495,24 @@ export default function DuelPlayPage() {
                         </CardHeader>
                     </Card>
 
-                    <div className="flex justify-center mb-2">
+                    <div className="flex justify-center gap-2 mb-2">
                         <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || !currentChallenge.hint}>
                             <Lightbulb className="mr-2 h-4 w-4" />
                             {t('hint_penalty')}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRevealLetter}
+                            disabled={isSubmitting || revealCount >= 3 || isRevealOnCooldown || !currentChallenge}
+                            className="relative"
+                        >
+                            <Key className="mr-2 h-4 w-4" />
+                            Révéler (-3 pts)
+                            {isRevealOnCooldown && <span className="absolute -top-1 -right-1 text-xs bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center">...</span>}
+                            <span className="ml-2 bg-primary text-primary-foreground rounded-full h-5 w-5 text-xs flex items-center justify-center">
+                                {3 - revealCount}
+                            </span>
                         </Button>
                     </div>
                     
@@ -484,5 +543,7 @@ export default function DuelPlayPage() {
     </div>
   );
 }
+
+    
 
     
