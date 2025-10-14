@@ -85,8 +85,6 @@ export default function DuelPlayPage() {
             ...result,
             solutionWord: word,
             jumbledLetters: shuffle([...solutionLetters, ...extraLetters]),
-            foundBy: null, // UID of player who found it
-            foundAt: null,
         };
 
         await updateDoc(duelRef, {
@@ -137,7 +135,7 @@ export default function DuelPlayPage() {
 
   // Effect to handle player leaving
   useEffect(() => {
-    return () => {
+    const handleBeforeUnload = () => {
       if (!duelData || !user || !duelRef || duelData.status !== 'active') return;
 
       const isHost = duelData.hostId === user.uid;
@@ -154,10 +152,15 @@ export default function DuelPlayPage() {
         });
       }
     };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [duelId, user?.uid, duelData, duelRef]);
 
   useEffect(() => {
-    if (duelRef && duelData?.status === 'active' && duelData.players.length === 1) {
+    if (duelRef && duelData?.status === 'active' && duelData.players.length === 1 && duelData.startedAt) {
       updateDoc(duelRef, {
         status: 'completed',
         winnerId: duelData.players[0].uid,
@@ -226,7 +229,7 @@ export default function DuelPlayPage() {
     const newPoints = (duelData?.playerScores?.[user.uid] || 0) + 10;
 
     await updateDoc(duelRef, {
-        [`playerScores.${user.uid}`]: newPoints
+        [`playerScores.${user.uid}`]: newPoints,
     });
 
     setIsSubmitting(false);
@@ -432,3 +435,5 @@ export default function DuelPlayPage() {
     </div>
   );
 }
+
+    
