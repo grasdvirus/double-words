@@ -60,17 +60,62 @@
           "description": "The current status of the duel."
         },
         "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "uid": { "type": "string" },
+              "displayName": { "type": "string" },
+              "photoURL": { "type": "string" }
+            }
+          }
+        },
+        "playerScores": {
           "type": "object",
-          "description": "An object containing the player information.",
-          "properties": {}
+          "properties": {},
+          "additionalProperties": { "type": "number" },
+          "description": "Scores for each player, keyed by UID."
+        },
+        "currentRound": {
+            "type": "number",
+            "description": "The current round number of the duel."
+        },
+        "rounds": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "challenge": { "type": "string" },
+                    "description": { "type": "string" },
+                    "solutionWord": { "type": "string" },
+                    "hint": { "type": "string" },
+                    "jumbledLetters": { "type": "array", "items": { "type": "string" } },
+                    "playerAnswers": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                                "answer": { "type": "string" },
+                                "isCorrect": { "type": "boolean" },
+                                "timeTaken": { "type": "number" }
+                            }
+                        }
+                    }
+                }
+            }
         },
         "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "Timestamp of when the duel was created."
+        },
+        "winnerId": {
+            "type": "string",
+            "description": "The UID of the winning player."
         }
       },
-      "required": ["gameCode", "hostId", "status", "players", "createdAt"]
+      "required": ["gameCode", "hostId", "status", "players", "createdAt", "playerScores", "currentRound", "rounds"]
     }
   },
   "auth": {

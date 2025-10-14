@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore';
 import { Users, Copy } from 'lucide-react';
 import { SiteHeader } from '@/components/site-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,6 +59,9 @@ export default function CreateDuelPage() {
           hostId: user.uid,
           status: 'waiting',
           players: [hostPlayer],
+          playerScores: { [user.uid]: 0 },
+          currentRound: 0,
+          rounds: [],
           createdAt: serverTimestamp(),
       };
 

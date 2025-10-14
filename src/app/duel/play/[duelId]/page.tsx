@@ -1,17 +1,34 @@
 
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { SiteHeader } from '@/components/site-header';
 import { useDoc, useFirestore, useUser } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Swords } from 'lucide-react';
+import { Swords, Check, X, Loader2, Crown, ArrowRight, Undo2 } from 'lucide-react';
+import { generateDuelChallenge } from '@/ai/flows/generate-duel-challenge';
+import { Button } from '@/components/ui/button';
+import { LetterGrid } from '@/components/letter-grid';
+import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
+
+const ROUNDS_IN_DUEL = 5;
+
+const shuffle = (array: string[]) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+};
 
 export default function DuelPlayPage() {
   const params = useParams();
+  const router = useRouter();
   const duelId = params.duelId as string;
   
   const firestore = useFirestore();
@@ -24,76 +41,320 @@ export default function DuelPlayPage() {
 
   const { data: duelData, isLoading } = useDoc(duelRef);
 
-  if (isLoading) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isWrong, setIsWrong] = useState(false);
+  const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
+  
+  const currentRoundIndex = duelData?.currentRound || 0;
+  const currentRound = duelData?.rounds?.[currentRoundIndex];
+  
+  // Memoize player info
+  const { host, opponent, me, otherPlayer } = useMemo(() => {
+    const host = duelData?.players.find((p: any) => p.uid === duelData.hostId);
+    const opponent = duelData?.players.find((p: any) => p.uid !== duelData.hostId);
+    const me = duelData?.players.find((p: any) => p.uid === user?.uid);
+    const otherPlayer = duelData?.players.find((p: any) => p.uid !== user?.uid);
+    return { host, opponent, me, otherPlayer };
+  }, [duelData, user?.uid]);
+
+  const myAnswer = currentRound?.playerAnswers?.[user?.uid || ''];
+  const opponentAnswer = otherPlayer ? currentRound?.playerAnswers?.[otherPlayer.uid] : undefined;
+
+  const startNewRound = useCallback(async () => {
+    if (!duelRef || !duelData || user?.uid !== duelData.hostId) return;
+
+    setIsGenerating(true);
+    try {
+        const result = await generateDuelChallenge({
+            existingWords: duelData.rounds.map(r => r.solutionWord)
+        });
+
+        const word = result.solutionWord.toUpperCase();
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const solutionLetters = word.split('');
+        const extraLetters: string[] = [];
+        while (extraLetters.length < Math.max(4, 12 - solutionLetters.length)) {
+            const randomLetter = alphabet[Math.floor(Math.random() * alphabet.length)];
+            if (!solutionLetters.includes(randomLetter)) {
+            extraLetters.push(randomLetter);
+            }
+        }
+        
+        const newRound = {
+            ...result,
+            solutionWord: word,
+            jumbledLetters: shuffle([...solutionLetters, ...extraLetters]),
+            playerAnswers: {}
+        };
+
+        const updatedRounds = [...duelData.rounds, newRound];
+        await updateDoc(duelRef, {
+            rounds: updatedRounds,
+            currentRound: duelData.rounds.length
+        });
+
+    } catch (e) {
+        console.error("Failed to generate duel challenge", e);
+    } finally {
+        setIsGenerating(false);
+    }
+  }, [duelRef, duelData, user?.uid]);
+
+  useEffect(() => {
+    if (duelData && duelData.status === 'active' && duelData.rounds.length === 0 && user?.uid === duelData.hostId) {
+      startNewRound();
+    }
+  }, [duelData, user?.uid, startNewRound]);
+
+  useEffect(() => {
+    if (currentRound) {
+        setInputValue("");
+        const letterCount = currentRound.jumbledLetters?.length || 0;
+        setDisabledLetterIndexes(new Array(letterCount).fill(false));
+    }
+  }, [currentRound]);
+  
+  useEffect(() => {
+    // If both players have answered, the host prepares the next round
+    if (user?.uid === duelData?.hostId && currentRound && Object.keys(currentRound.playerAnswers).length === 2) {
+      setTimeout(() => {
+        if (currentRoundIndex < ROUNDS_IN_DUEL - 1) {
+          startNewRound();
+        } else {
+            // End of game
+            const finalScores = duelData.playerScores;
+            const winnerId = Object.keys(finalScores).reduce((a, b) => finalScores[a] > finalScores[b] ? a : b);
+            updateDoc(duelRef, { status: 'completed', winnerId: winnerId });
+        }
+      }, 3000); // 3-second pause before next round
+    }
+  }, [currentRound, user, duelData, startNewRound, currentRoundIndex, duelRef]);
+
+  const handleKeyPress = (key: string, index: number) => {
+    if (!currentRound || inputValue.length >= currentRound.solutionWord.length) return;
+    setInputValue((prev) => prev + key);
+    setDisabledLetterIndexes(prev => {
+        const newDisabled = [...prev];
+        newDisabled[index] = true;
+        return newDisabled;
+    });
+  };
+  
+  const handleBackspace = () => {
+    if (inputValue.length === 0 || !currentRound) return;
+    
+    const lastChar = inputValue[inputValue.length - 1];
+    setInputValue((prev) => prev.slice(0, -1));
+
+    let reEnabled = false;
+    for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
+        if(currentRound.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
+            setDisabledLetterIndexes(prev => {
+                const newDisabled = [...prev];
+                newDisabled[i] = false;
+                return newDisabled;
+            });
+            reEnabled = true;
+        }
+    }
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isSubmitting || !currentRound || !user || !duelRef || myAnswer) return;
+
+    setIsSubmitting(true);
+    const cleanedInput = inputValue.trim().toUpperCase();
+
+    const isCorrect = cleanedInput === currentRound.solutionWord;
+
+    if (!isCorrect) {
+      setIsWrong(true);
+      setTimeout(() => {
+        setIsWrong(false);
+        setInputValue("");
+        if(currentRound) {
+            setDisabledLetterIndexes(new Array(currentRound.jumbledLetters.length).fill(false));
+        }
+      }, 800);
+      setTimeout(() => setIsSubmitting(false), 820);
+      return;
+    }
+
+    const newAnswer = {
+        answer: cleanedInput,
+        isCorrect: true,
+        timeTaken: Date.now() // Simple timestamp for now
+    };
+
+    const newPoints = (duelData.playerScores[user.uid] || 0) + 10;
+
+    await updateDoc(duelRef, {
+        [`rounds.${currentRoundIndex}.playerAnswers.${user.uid}`]: newAnswer,
+        [`playerScores.${user.uid}`]: newPoints
+    });
+
+    setIsSubmitting(false);
+  };
+  
+  const renderInputBoxes = () => {
+    if (!currentRound) {
+      return <div className="flex justify-center items-center gap-2 flex-wrap min-h-14"><Loader2 className="animate-spin" /></div>;
+    }
+
+    return (
+      <div className="relative min-h-14">
+        <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
+          {Array.from({ length: currentRound.solutionWord.length }).map((_, i) => (
+            <div
+                key={i}
+                className={cn(
+                    "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
+                    "bg-card transition-all duration-300",
+                    inputValue[i] && "border-primary ring-2 ring-primary animate-pop-in"
+                )}
+            >
+                {inputValue[i] || ''}
+            </div>
+          ))}
+        </div>
+        {isWrong && <span className="text-3xl absolute -right-10 top-1/2 -translate-y-1/2 animate-pop-in">❌</span>}
+      </div>
+    );
+  };
+
+
+  if (isLoading || !duelData) {
     return (
       <div className="flex min-h-screen items-center justify-center flex-col gap-4">
         <div className="section-center">
-            <div className="section-path">
-                <div className="globe">
-                <div className="wrapper">
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                </div>
-                </div>
-            </div>
+            <div className="section-path"><div className="globe"><div className="wrapper"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div></div></div>
         </div>
-        <p className="text-lg">Chargement du duel...</p>
+        <p className="text-lg pt-24">Chargement du duel...</p>
       </div>
     );
   }
 
-  if (!duelData) {
-     return (
-      <div className="flex min-h-screen items-center justify-center flex-col gap-4">
-         <h1 className="text-2xl font-bold text-destructive">Duel non trouvé</h1>
-         <p>Cette partie n'existe pas ou a été annulée.</p>
+  if (duelData.status === 'completed') {
+    const winner = duelData.players.find(p => p.uid === duelData.winnerId);
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center">
+        <SiteHeader />
+        <main className="flex-1 flex flex-col items-center justify-center text-center p-4">
+            <h1 className="text-4xl font-bold text-primary mb-4">Partie terminée !</h1>
+            <Crown className="h-24 w-24 text-yellow-400 my-8 animate-bounce"/>
+            <p className="text-2xl mb-4">Le vainqueur est...</p>
+            <div className="flex flex-col items-center gap-2">
+                <Avatar className="h-32 w-32 border-4 border-primary">
+                    <AvatarImage src={winner?.photoURL} alt={winner?.displayName} />
+                    <AvatarFallback className="text-5xl">{winner?.displayName?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <p className="font-bold text-3xl">{winner?.displayName}</p>
+            </div>
+            <Button onClick={() => router.push('/duel')} className="mt-12">
+                Retour au lobby des duels
+            </Button>
+        </main>
       </div>
-     )
+    )
   }
 
-  const host = duelData.players.find((p: any) => p.uid === duelData.hostId);
-  const opponent = duelData.players.find((p: any) => p.uid !== duelData.hostId);
+  const renderPlayer = (player: any, isHost: boolean) => {
+    if (!player) return <div className="w-1/3" />;
+    const score = duelData.playerScores[player.uid] || 0;
+    const answerForRound = currentRound?.playerAnswers?.[player.uid];
+    
+    return (
+        <div className="flex flex-col items-center gap-2 w-1/3">
+            <Avatar className="h-20 w-20 border-4 border-primary">
+                <AvatarImage src={player.photoURL} alt={player.displayName} />
+                <AvatarFallback className="text-3xl">{player.displayName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <p className="font-bold text-lg">{player.displayName}</p>
+            <p className="text-muted-foreground text-sm">{isHost ? 'Hôte' : 'Adversaire'}</p>
+            <p className="text-2xl font-bold text-primary">{score}</p>
+            {currentRound && (
+                <div className="flex items-center gap-2 h-6">
+                    {answerForRound ? (
+                         answerForRound.isCorrect ? <Check className="text-green-500 animate-pop-in" /> : <X className="text-red-500 animate-shake" />
+                    ) : (
+                        <Loader2 className="animate-spin text-muted-foreground"/>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+  }
 
   return (
     <div className="relative flex min-h-screen flex-col">
       <SiteHeader />
       <main className="flex-1">
         <div className="container py-8 max-w-4xl mx-auto animate-fade-in text-center">
-            <div className="flex justify-around items-center mb-8">
-                <div className="flex flex-col items-center gap-2">
-                    <Avatar className="h-24 w-24 border-4 border-primary">
-                        <AvatarImage src={host?.photoURL} alt={host?.displayName} />
-                        <AvatarFallback className="text-3xl">{host?.displayName?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <p className="font-bold text-xl">{host?.displayName}</p>
-                    <p className="text-muted-foreground">Hôte</p>
+            <div className="flex justify-around items-start mb-6">
+                {renderPlayer(host, true)}
+                <div className="flex flex-col items-center pt-8">
+                  <Swords className="h-10 w-10 text-primary animate-pulse" />
+                  <p className="text-xl font-bold mt-2">Manche {currentRoundIndex + 1}/{ROUNDS_IN_DUEL}</p>
                 </div>
-                
-                <Swords className="h-12 w-12 text-primary animate-pulse" />
-
-                 <div className="flex flex-col items-center gap-2">
-                    <Avatar className="h-24 w-24 border-4 border-muted-foreground">
-                        <AvatarImage src={opponent?.photoURL} alt={opponent?.displayName} />
-                        <AvatarFallback className="text-3xl">{opponent?.displayName?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <p className="font-bold text-xl">{opponent?.displayName}</p>
-                    <p className="text-muted-foreground">Adversaire</p>
-                </div>
+                {renderPlayer(opponent, false)}
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Le duel va commencer !</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p>La logique du jeu est en cours de développement.</p>
-                    <p>Bientôt, vous pourrez vous affronter ici !</p>
-                </CardContent>
-            </Card>
+            <Progress value={((currentRoundIndex + 1) / ROUNDS_IN_DUEL) * 100} className="mb-8" />
+            
+            {!currentRound ? (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>En attente du prochain tour</CardTitle>
+                    </CardHeader>
+                    <CardContent className='flex justify-center items-center p-8'>
+                        {user?.uid === duelData.hostId ? (
+                            <Button onClick={startNewRound} disabled={isGenerating}>
+                                {isGenerating ? <Loader2 className='animate-spin'/> : "Démarrer la manche"}
+                            </Button>
+                        ) : (
+                            <div className='flex items-center gap-3 text-muted-foreground'>
+                                <Loader2 className="animate-spin"/>
+                                <p>L'hôte prépare la prochaine manche...</p>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="w-full max-w-3xl flex flex-col gap-4">
+                     <Card>
+                        <CardHeader className="text-center">
+                            <CardTitle className="text-2xl font-semibold">
+                            Défi : {currentRound.description}
+                            </CardTitle>
+                        </CardHeader>
+                    </Card>
+                    
+                    <div className="space-y-4">
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="relative">
+                                {renderInputBoxes()}
+                                <Button type="button" size="icon" variant="ghost" className="absolute right-0 top-1/2 -translate-y-1/2 transform-gpu" onClick={handleBackspace} disabled={isSubmitting || inputValue.length === 0 || !!myAnswer}>
+                                    <Undo2 className="h-5 w-5"/>
+                                </Button>
+                            </div>
+
+                            <LetterGrid letters={currentRound.jumbledLetters || []} onKeyPress={handleKeyPress} disabledLetters={disabledLetterIndexes} disabled={isSubmitting || !!myAnswer} />
+
+                            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !currentRound || inputValue.length !== currentRound.solutionWord.length || !!myAnswer}>
+                                {isSubmitting && <Loader2 className="animate-spin mr-2" />}
+                                {myAnswer ? "En attente de l'adversaire..." : 'Valider'}
+                                {!myAnswer && !isSubmitting && <ArrowRight className="ml-2" />}
+                            </Button>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
       </main>
     </div>
   );
 }
+

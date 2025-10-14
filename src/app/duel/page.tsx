@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowRight, Users, Gamepad, KeyRound, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, where, getDocs, updateDoc, doc, arrayUnion, getDoc, setDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 import { useNotification } from "@/contexts/notification-context";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -101,12 +101,15 @@ export default function DuelLobbyPage() {
         throw new Error("Le document du jeu n'existe plus.");
       }
       const currentData = currentDocSnap.data();
-
+      
       const updatedPlayers = [...currentData.players, player2];
+      
+      const updatedScores = { ...currentData.playerScores, [user.uid]: 0 };
 
       const updateData = {
         ...currentData,
         players: updatedPlayers,
+        playerScores: updatedScores,
         status: 'active'
       };
 
@@ -114,7 +117,7 @@ export default function DuelLobbyPage() {
         .catch(error => {
             const permissionError = new FirestorePermissionError({
                 path: gameDocRef.path,
-                operation: 'write', // Changed to 'write' for setDoc
+                operation: 'write',
                 requestResourceData: updateData,
             });
             errorEmitter.emit('permission-error', permissionError);
@@ -125,9 +128,7 @@ export default function DuelLobbyPage() {
       router.push(`/duel/play/${gameDoc.id}`);
 
     } catch (error) {
-       if (error instanceof FirestorePermissionError) {
-         // Already handled
-       } else {
+       if (!(error instanceof FirestorePermissionError)) {
          errorEmitter.emit('permission-error', new FirestorePermissionError({
            path: 'duels',
            operation: 'list'
