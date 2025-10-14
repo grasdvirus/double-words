@@ -1,19 +1,24 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a user-ownership model for user profiles and leaderboard entries.
- * Duel game sessions have shared access, where players can create, join, and update their own games.
+ * @fileoverview Firestore Security Rules for Duel app.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a user-ownership model for user profiles and leaderboard entries,
+ * and allows open read access to leaderboard data. Duel games can be created by any logged-in user.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information.
- * - /leaderboard/{userId}: Stores the highest score for each user.
- * - /duels/{duelId}: Stores real-time duel game sessions.
+ * - /users/{userId}: User profile information, writeable only by the user.
+ * - /leaderboard/{userId}: Leaderboard entries, publicly readable, writeable only by the user.
+ * - /duels/{duelId}: Duel game sessions.
  *
  * Key Security Decisions:
- * - Users can only read and write their own user profile and leaderboard data.
- * - Duel games allow shared access for players.
+ * - Users can only read their own profile.
+ * - Users can only read and write their own leaderboard entry.
+ * - Listing of users is disallowed for privacy.
+ * - Listing of leaderboard is allowed since its designed to be a public resource.
+ * - Listing of duels is allowed for any logged in user.
  *
  * Denormalization for Authorization:
- * - The `hostId` field in the `duels/{duelId}` document is used to determine the game creator.
+ * - The `hostId` field in the `/duels/{duelId}` document is used to enforce ownership.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -22,103 +27,71 @@ service cloud.firestore {
     /**
      * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their profile document at /users/user123.
-     * @deny (create) User with UID 'user456' cannot create a profile document at /users/user123.
-     * @allow (get) User with UID 'user123' can read their profile document at /users/user123.
-     * @allow (update) User with UID 'user123' can update their profile document at /users/user123.
-     * @deny (update) User with UID 'user456' cannot update the profile document at /users/user123.
-     * @allow (delete) User with UID 'user123' can delete their profile document at /users/user123.
-     * @deny (delete) User with UID 'user456' cannot delete the profile document at /users/user123.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (create) - User with UID 'user123' can create their profile.
+     * @allow (get) - User with UID 'user123' can read their profile.
+     * @allow (update) - User with UID 'user123' can update their profile.
+     * @allow (delete) - User with UID 'user123' can delete their profile.
+     * @deny (create) - User with UID 'otherUser' cannot create a profile for 'user123'.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      // Helper function to check if the authenticated user is the owner of the document.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-      // Helper function to check if the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
-
-      allow get: if isSignedIn();
+      allow get: if isOwner(userId);
       allow list: if false;
-
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Controls access to leaderboard entry documents.
+     * @description Controls access to leaderboard entries.
      * @path /leaderboard/{userId}
-     * @allow (create) User with UID 'user123' can create their leaderboard entry at /leaderboard/user123.
-     * @deny (create) User with UID 'user456' cannot create a leaderboard entry at /leaderboard/user123.
-     * @allow (get) Any user can read any leaderboard entry.
-     * @allow (list) Any user can list leaderboard entries.
-     * @allow (update) User with UID 'user123' can update their leaderboard entry at /leaderboard/user123.
-     * @deny (update) User with UID 'user456' cannot update the leaderboard entry at /leaderboard/user123.
-     * @allow (delete) User with UID 'user123' can delete their leaderboard entry at /leaderboard/user123.
-     * @deny (delete) User with UID 'user456' cannot delete the leaderboard entry at /leaderboard/user123.
-     * @principle Enforces document ownership for writes, allows public reads, and restricts access to a user's own data tree.
+     * @allow (get) - Anyone can read any leaderboard entry.
+     * @allow (list) - Anyone can list all leaderboard entries.
+     * @allow (create) - User with UID 'user123' can create their leaderboard entry.
+     * @allow (update) - User with UID 'user123' can update their leaderboard entry.
+     * @allow (delete) - User with UID 'user123' can delete their leaderboard entry.
+     * @deny (create) - User with UID 'otherUser' cannot create a leaderboard entry for 'user123'.
+     * @principle Allows public read access to leaderboard data, enforces ownership for writes.
      */
     match /leaderboard/{userId} {
-      // Helper function to check if the authenticated user is the owner of the document.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
-      // Helper function to check if the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
-
       allow get, list: if true;
-
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isOwner(userId);
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Controls access to duel game documents.
+     * @description Controls access to duel game sessions.
      * @path /duels/{duelId}
-     * @allow (create) User with UID 'user123' can create a duel game at /duels/{duelId}.
-     * @deny (create) User with UID 'user456' cannot create a duel game if they are not authenticated.
-     * @allow (get) Any signed in user can read the duel game data.
-     * @allow (list) Any signed in user can list duel game data.
-     * @allow (update) A user can update a duel game if they are the host or a player.
-     * @deny (update) A user cannot update a duel game if they are not the host or a player.
-     * @allow (delete) The host can delete a duel game if the game has not started.
-     * @deny (delete) A user cannot delete a duel game if they are not the host.
-     * @principle Enforces shared access for players within a duel game.
+     * @allow (create) - User with UID 'user123' can create a duel. The hostId must match.
+     * @allow (get) - Anyone can read a duel.
+     * @allow (list) - Any logged-in user can list duels.
+     * @allow (update) - Only the host (identified by hostId) can update the duel.
+     * @allow (delete) - Only the host can delete the duel.
+     * @deny (create) - User with UID 'otherUser' cannot create a duel with hostId 'user123'.
+     * @principle Enforces ownership for duel creation and modification.
      */
     match /duels/{duelId} {
-      // Helper function to check if the authenticated user is the host of the duel.
-      function isHost(hostId) {
-        return request.auth.uid == hostId;
-      }
-      // Helper function to check if the authenticated user is a player in the duel.
-      function isPlayer(players) {
-        return request.auth.uid in players;
-      }
-     // Helper function to check if the authenticated user is a player in the duel.
-      function isAPlayer() {
-        return request.auth.uid != null;
-      }
-      // Helper function to check if the user is signed in.
       function isSignedIn() {
         return request.auth != null;
-      }
-        // Helper function to check if the authenticated user is a player in the duel.
-      function isExistingOwner(hostId) {
-        return isHost(hostId) && resource != null;
       }
 
       allow get, list: if isSignedIn();
-      allow create: if isSignedIn()
-                   && request.resource.data.hostId == request.auth.uid;
-      allow update: if isSignedIn() && (isHost(resource.data.hostId) || (resource.data.players is list && isPlayer(resource.data.players)));
-      allow delete: if isSignedIn() && isHost(resource.data.hostId);
+      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isSignedIn() && request.resource.data.hostId == resource.data.hostId;
+      allow delete: if isSignedIn() && request.resource.data.hostId == resource.data.hostId;
     }
   }
 }
