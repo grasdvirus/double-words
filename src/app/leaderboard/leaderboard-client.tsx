@@ -219,10 +219,10 @@ export function LeaderboardClient() {
   const { seasonEndDate } = useGame();
   const [isSeasonOver, setIsSeasonOver] = useState(false);
 
-  // This query always fetches the top 10 for display
+  // This query always fetches the top 100 for display
   const topPlayersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, "leaderboard"), orderBy("score", "desc"), limit(10));
+    return query(collection(firestore, "leaderboard"), orderBy("score", "desc"), limit(100));
   }, [firestore]);
 
   // This query fetches ALL players, but only when the season is over, to calculate ranks
@@ -255,7 +255,7 @@ export function LeaderboardClient() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('leaderboard_top10')}</CardTitle>
+        <CardTitle>{t('leaderboard_top100')}</CardTitle>
       </CardHeader>
       <CardContent>
         <LeaderboardTable players={topPlayersData} isLoading={isLoadingTop} />

@@ -137,7 +137,7 @@ export const translations = {
     
     // Leaderboard
     'leaderboard_title': 'Classement',
-    'leaderboard_top10': 'Top 10 des Joueurs',
+    'leaderboard_top100': 'Top 100 des Meilleurs de la Saison',
     'top_players': 'Meilleurs Joueurs',
     'recent_scores': 'Scores Récents',
     'rank': 'Rang',
@@ -308,7 +308,7 @@ export const translations = {
 
     // Leaderboard
     'leaderboard_title': 'Leaderboard',
-    'leaderboard_top10': 'Top 10 Players',
+    'leaderboard_top100': 'Top 100 of the Season',
     'top_players': 'Top Players',
     'recent_scores': 'Recent Scores',
     'rank': 'Rank',
