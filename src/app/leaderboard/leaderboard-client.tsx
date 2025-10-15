@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
+import React from "react";
 
 interface Player {
   id: string;
@@ -20,6 +21,7 @@ interface Player {
   score: number;
   photoURL?: string;
   updatedAt?: { seconds: number, nanoseconds: number };
+  uid?: string;
 }
 
 const getTier = (score: number) => {
@@ -80,7 +82,7 @@ function LeaderboardTable({ players, isLoading, isRecent = false }: { players: P
           const rank = index + 1;
           return (
             <TableRow 
-                key={`${player.id}-${index}`}
+                key={player.id}
                 className={cn(
                     "transition-transform duration-300",
                     rank > 3 && "hover:scale-[1.02] hover:bg-white/5"
@@ -133,11 +135,22 @@ export function LeaderboardClient() {
   
   const recentScoresQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, "recentScores"), orderBy("updatedAt", "desc"), limit(10));
+    return query(collection(firestore, "recentScores"), orderBy("updatedAt", "desc"), limit(25));
   }, [firestore]);
 
   const { data: topPlayersData, isLoading: isLoadingTop } = useCollection<Player>(topPlayersQuery);
   const { data: recentScoresData, isLoading: isLoadingRecent } = useCollection<Player>(recentScoresQuery);
+  
+  const uniqueRecentScores = React.useMemo(() => {
+    if (!recentScoresData) return null;
+    const uniqueScores = new Map<string, Player>();
+    for (const score of recentScoresData) {
+        if(score.uid && !uniqueScores.has(score.uid)) {
+            uniqueScores.set(score.uid, score);
+        }
+    }
+    return Array.from(uniqueScores.values()).slice(0, 10);
+  }, [recentScoresData]);
 
 
   return (
@@ -155,7 +168,7 @@ export function LeaderboardClient() {
              <LeaderboardTable players={topPlayersData} isLoading={isLoadingTop} />
           </TabsContent>
           <TabsContent value="recent-scores">
-             <LeaderboardTable players={recentScoresData} isLoading={isLoadingRecent} isRecent={true} />
+             <LeaderboardTable players={uniqueRecentScores} isLoading={isLoadingRecent} isRecent={true} />
           </TabsContent>
         </Tabs>
       </CardContent>
