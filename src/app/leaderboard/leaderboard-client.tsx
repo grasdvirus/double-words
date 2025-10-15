@@ -80,7 +80,7 @@ function LeaderboardTable({ players, isLoading, isRecent = false }: { players: P
           const rank = index + 1;
           return (
             <TableRow 
-                key={player.id + index} 
+                key={`${player.id}-${index}`}
                 className={cn(
                     "transition-transform duration-300",
                     rank > 3 && "hover:scale-[1.02] hover:bg-white/5"
