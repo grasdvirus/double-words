@@ -85,15 +85,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       photoURL: user.photoURL || "",
     };
 
-    // 1. Update the "Recent Score" for this user. This overwrites their previous recent score.
-    const recentScoreRef = doc(firestore, 'recentScores', user.uid);
-    await setDoc(recentScoreRef, {
-      ...userData,
-      score: finalScore,
-      updatedAt: serverTimestamp(),
-    });
+    // This collection is no longer used
+    // const recentScoreRef = doc(firestore, 'recentScores', user.uid);
+    // await setDoc(recentScoreRef, {
+    //   ...userData,
+    //   score: finalScore,
+    //   updatedAt: serverTimestamp(),
+    // });
 
-    // 2. Update the "All-Time High Score" in the main leaderboard, only if the new score is higher.
     const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
     const docSnap = await getDoc(leaderboardRef);
 
@@ -106,7 +105,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
         updatedAt: serverTimestamp(),
       }, { merge: true });
     } else if (!docSnap.exists()) {
-       // If the user is not on the leaderboard yet, add them with their first score.
        await setDoc(leaderboardRef, {
         ...userData,
         score: finalScore,

@@ -136,7 +136,7 @@ export const translations = {
     'rules_leaderboard_text': 'Connectez-vous avec votre compte Google pour que votre score soit enregistré et apparaisse dans le classement des meilleurs joueurs !',
     
     // Leaderboard
-    'leaderboard_title': 'Classements',
+    'leaderboard_title': 'Classement',
     'leaderboard_top10': 'Top 10 des Joueurs',
     'top_players': 'Meilleurs Joueurs',
     'recent_scores': 'Scores Récents',
@@ -307,7 +307,7 @@ export const translations = {
     'rules_leaderboard_text': 'Log in with your Google account for your score to be saved and appear on the top players leaderboard!',
 
     // Leaderboard
-    'leaderboard_title': 'Leaderboards',
+    'leaderboard_title': 'Leaderboard',
     'leaderboard_top10': 'Top 10 Players',
     'top_players': 'Top Players',
     'recent_scores': 'Recent Scores',

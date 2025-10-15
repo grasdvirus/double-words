@@ -1,0 +1,207 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's public profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture."
+        },
+        "palmares": {
+          "type": "object",
+          "description": "User's track record of leaderboard finishes.",
+          "properties": {
+            "firstPlace": {
+              "type": "number",
+              "description": "Number of times finished 1st."
+            },
+            "secondPlace": {
+              "type": "number",
+              "description": "Number of times finished 2nd."
+            },
+            "thirdPlace": {
+              "type": "number",
+              "description": "Number of times finished 3rd."
+            }
+          }
+        }
+      },
+      "required": [
+        "displayName"
+      ]
+    },
+    "LeaderboardEntry": {
+      "title": "Leaderboard Entry",
+      "type": "object",
+      "description": "Represents a single entry on the leaderboard.",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user for this entry."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture for this entry."
+        },
+        "score": {
+          "type": "number",
+          "description": "The user's highest score."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the last score update."
+        }
+      },
+      "required": [
+        "displayName",
+        "score",
+        "updatedAt"
+      ]
+    },
+    "DuelGame": {
+      "title": "Duel Game",
+      "type": "object",
+      "description": "Represents a 1v1 duel game session.",
+      "properties": {
+        "gameCode": {
+          "type": "string",
+          "description": "A short, unique code for joining the game."
+        },
+        "hostId": {
+          "type": "string",
+          "description": "The UID of the user who created the game."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "waiting",
+            "active",
+            "completed",
+            "abandoned"
+          ],
+          "description": "The current status of the duel."
+        },
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "uid": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "photoURL": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "playerScores": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Scores for each player, keyed by UID."
+        },
+        "duration": {
+          "type": "number",
+          "description": "Duration of the duel in minutes."
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp for when the duel becomes active."
+        },
+        "wordHistory": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of words already found in the duel."
+        },
+        "currentChallenge": {
+          "type": "object",
+          "properties": {
+            "challenge": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "solutionWord": {
+              "type": "string"
+            },
+            "hint": {
+              "type": "string"
+            },
+            "jumbledLetters": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the duel was created."
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the duel was completed or abandoned."
+        },
+        "winnerId": {
+          "type": "string",
+          "description": "The UID of the winning player."
+        }
+      },
+      "required": [
+        "gameCode",
+        "hostId",
+        "status",
+        "players",
+        "createdAt",
+        "playerScores",
+        "duration"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores public user profile information. A user can only write to their own document."
+    },
+    "/leaderboard/{userId}": {
+      "schema": {
+        "$ref": "#/entities/LeaderboardEntry"
+      },
+      "description": "Stores the highest score for each user. Publicly readable, but a user can only write to their own entry."
+    },
+    "/duels/{duelId}": {
+      "schema": {
+        "$ref": "#/entities/DuelGame"
+      },
+      "description": "Stores real-time duel game sessions. Players can create, join, and update their own games."
+    }
+  }
+}
