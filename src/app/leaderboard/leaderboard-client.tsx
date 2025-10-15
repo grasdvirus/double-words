@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useMemo } from "react";
 
 interface Player {
   id: string;
@@ -60,6 +60,10 @@ function LeaderboardTable({ players, isLoading, isRecent = false }: { players: P
       </div>
     );
   }
+  
+  const displayPlayers = isRecent 
+    ? players 
+    : players;
 
   return (
     <Table>
@@ -76,13 +80,13 @@ function LeaderboardTable({ players, isLoading, isRecent = false }: { players: P
         </TableRow>
       </TableHeader>
       <TableBody>
-        {players?.map((player, index) => {
+        {displayPlayers?.map((player, index) => {
           const tier = getTier(player.score);
           const date = player.updatedAt ? new Date(player.updatedAt.seconds * 1000) : null;
           const rank = index + 1;
           return (
             <TableRow 
-                key={player.id}
+                key={`${player.id}-${index}`}
                 className={cn(
                     "transition-transform duration-300",
                     rank > 3 && "hover:scale-[1.02] hover:bg-white/5"
