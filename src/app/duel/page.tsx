@@ -47,32 +47,24 @@ export default function DuelLobbyPage() {
     }
 
     setIsJoining(true);
+    let gameDocRef;
 
     try {
-      // 1. Look up the game code in the duelGameCodes collection
       const gameCodeRef = doc(firestore, 'duelGameCodes', code);
       const gameCodeSnap = await getDoc(gameCodeRef);
 
       if (!gameCodeSnap.exists()) {
-        showNotification({
-          title: t('game_not_found'),
-          message: t('game_not_found_message'),
-          type: 'error'
-        });
+        showNotification({ title: t('game_not_found'), message: t('game_not_found_message'), type: 'error' });
         setIsJoining(false);
         return;
       }
 
       const { duelId } = gameCodeSnap.data();
-      const gameDocRef = doc(firestore, "duels", duelId);
+      gameDocRef = doc(firestore, "duels", duelId);
       const gameDoc = await getDoc(gameDocRef);
 
       if (!gameDoc.exists() || gameDoc.data().status !== 'waiting') {
-        showNotification({
-          title: t('game_not_found'),
-          message: t('game_not_found_message'),
-          type: 'error'
-        });
+        showNotification({ title: t('game_not_found'), message: t('game_not_found_message'), type: 'error' });
         setIsJoining(false);
         return;
       }
@@ -80,21 +72,13 @@ export default function DuelLobbyPage() {
       const gameData = gameDoc.data();
       
       if (gameData.hostId === user.uid) {
-        showNotification({
-          title: t('cannot_join_own_game'),
-          message: t('cannot_join_own_game_message'),
-          type: 'error'
-        });
+        showNotification({ title: t('cannot_join_own_game'), message: t('cannot_join_own_game_message'), type: 'error' });
         setIsJoining(false);
         return;
       }
       
       if (gameData.players.length >= 2) {
-          showNotification({
-             title: t('game_full'),
-             message: t('game_full_message'),
-             type: 'error'
-          });
+          showNotification({ title: t('game_full'), message: t('game_full_message'), type: 'error' });
           setIsJoining(false);
           return;
       }
@@ -112,30 +96,20 @@ export default function DuelLobbyPage() {
         players: updatedPlayers,
         playerScores: updatedScores,
         status: 'active',
-        startedAt: serverTimestamp() // Start the clock
+        startedAt: serverTimestamp()
       };
 
-      await updateDoc(gameDocRef, updateData)
-        .catch(error => {
-            const permissionError = new FirestorePermissionError({
-                path: gameDocRef.path,
-                operation: 'update',
-                requestResourceData: updateData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setIsJoining(false);
-            throw error;
-        });
+      await updateDoc(gameDocRef, updateData);
 
-      router.push(`/duel/play/${gameDoc.id}`);
+      router.push(`/duel/play/${duelId}`);
 
     } catch (error) {
-       if (!(error instanceof FirestorePermissionError)) {
-         errorEmitter.emit('permission-error', new FirestorePermissionError({
-           path: `duelGameCodes/${code}`,
-           operation: 'get'
-         }));
-       }
+       console.error("Error joining game:", error);
+       const permissionError = new FirestorePermissionError({
+           path: gameDocRef?.path || `duelGameCodes/${code}`,
+           operation: 'update',
+       });
+       errorEmitter.emit('permission-error', permissionError);
        setIsJoining(false);
     }
   };
