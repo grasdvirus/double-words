@@ -66,40 +66,6 @@
         "updatedAt"
       ]
     },
-    "RecentScoreEntry": {
-      "title": "Recent Score Entry",
-      "type": "object",
-      "description": "Represents a single score entry from a completed game.",
-      "properties": {
-        "uid": {
-          "type": "string",
-          "description": "The UID of the user who achieved the score."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "The display name of the user at the time of the score."
-        },
-        "photoURL": {
-          "type": "string",
-          "description": "URL of the user's profile picture at the time of the score."
-        },
-        "score": {
-          "type": "number",
-          "description": "The score achieved in the game session."
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp of when the score was recorded."
-        }
-      },
-      "required": [
-        "uid",
-        "displayName",
-        "score",
-        "updatedAt"
-      ]
-    },
     "DuelGame": {
       "title": "Duel Game",
       "type": "object",
@@ -211,6 +177,18 @@
         "playerScores",
         "duration"
       ]
+    },
+    "DuelGameCode": {
+      "title": "Duel Game Code",
+      "description": "Maps a game code to a duel ID.",
+      "type": "object",
+      "properties": {
+        "duelId": {
+          "type": "string",
+          "description": "The ID of the duel document in the /duels collection."
+        }
+      },
+      "required": ["duelId"]
     }
   },
   "auth": {
@@ -231,17 +209,17 @@
       },
       "description": "Stores the highest score for each user. Publicly readable, but a user can only write to their own entry."
     },
-    "/recentScores/{userId}": {
-      "schema": {
-        "$ref": "#/entities/RecentScoreEntry"
-      },
-      "description": "Stores the most recent game score for each user. Any authenticated user can write to their own document, and it is publicly readable."
-    },
     "/duels/{duelId}": {
       "schema": {
         "$ref": "#/entities/DuelGame"
       },
       "description": "Stores real-time duel game sessions. Players can create, join, and update their own games."
+    },
+    "/duelGameCodes/{gameCode}": {
+      "schema": {
+        "$ref": "#/entities/DuelGameCode"
+      },
+      "description": "Maps a short, user-friendly game code to the full ID of a duel document. This allows players to join games without needing to query the entire 'duels' collection."
     }
   }
 }

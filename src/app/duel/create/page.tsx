@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { Users, Copy, Clock, Play } from 'lucide-react';
 import { SiteHeader } from '@/components/site-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +39,7 @@ export default function CreateDuelPage() {
   const [players, setPlayers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreateDuel = () => {
+  const handleCreateDuel = async () => {
     if (!user || !firestore) {
       showNotification({
         title: t('auth_required'),
@@ -73,21 +73,25 @@ export default function CreateDuelPage() {
 
     const duelsCollection = collection(firestore, 'duels');
     
-    addDoc(duelsCollection, duelData)
-      .then(docRef => {
-          setGameCode(code);
-          setDuelId(docRef.id);
-      })
-      .catch((serverError) => {
-          const permissionError = new FirestorePermissionError({
-              path: duelsCollection.path,
-              operation: 'create',
-              requestResourceData: duelData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-      }).finally(() => {
+    try {
+        const docRef = await addDoc(duelsCollection, duelData);
+
+        // Create the game code mapping document
+        const gameCodeRef = doc(firestore, 'duelGameCodes', code);
+        await setDoc(gameCodeRef, { duelId: docRef.id });
+
+        setGameCode(code);
+        setDuelId(docRef.id);
+    } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+            path: duelsCollection.path,
+            operation: 'create',
+            requestResourceData: duelData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+    } finally {
         setIsLoading(false);
-      });
+    }
   };
 
   useEffect(() => {

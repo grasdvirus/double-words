@@ -10,7 +10,7 @@ import Link from "next/link";
 import { ArrowRight, Users, Gamepad, KeyRound, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useFirestore, useUser } from "@/firebase";
-import { collection, query, where, getDocs, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, getDoc, doc, setDoc, serverTimestamp, getDocs, updateDoc } from "firebase/firestore";
 import { useNotification } from "@/contexts/notification-context";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -35,8 +35,9 @@ export default function DuelLobbyPage() {
       });
       return;
     }
-
-    if (!joinCode || joinCode.length !== 6) {
+    
+    const code = joinCode.toUpperCase();
+    if (!code || code.length !== 6) {
       showNotification({
         title: t('invalid_code'),
         message: t('invalid_code_message'),
@@ -47,16 +48,12 @@ export default function DuelLobbyPage() {
 
     setIsJoining(true);
 
-    const q = query(
-      collection(firestore, "duels"),
-      where("gameCode", "==", joinCode.toUpperCase()),
-      where("status", "==", "waiting")
-    );
-    
     try {
-      const querySnapshot = await getDocs(q);
+      // 1. Look up the game code in the duelGameCodes collection
+      const gameCodeRef = doc(firestore, 'duelGameCodes', code);
+      const gameCodeSnap = await getDoc(gameCodeRef);
 
-      if (querySnapshot.empty) {
+      if (!gameCodeSnap.exists()) {
         showNotification({
           title: t('game_not_found'),
           message: t('game_not_found_message'),
@@ -66,9 +63,22 @@ export default function DuelLobbyPage() {
         return;
       }
 
-      const gameDoc = querySnapshot.docs[0];
-      const gameData = gameDoc.data();
+      const { duelId } = gameCodeSnap.data();
+      const gameDocRef = doc(firestore, "duels", duelId);
+      const gameDoc = await getDoc(gameDocRef);
 
+      if (!gameDoc.exists() || gameDoc.data().status !== 'waiting') {
+        showNotification({
+          title: t('game_not_found'),
+          message: t('game_not_found_message'),
+          type: 'error'
+        });
+        setIsJoining(false);
+        return;
+      }
+
+      const gameData = gameDoc.data();
+      
       if (gameData.hostId === user.uid) {
         showNotification({
           title: t('cannot_join_own_game'),
@@ -95,8 +105,6 @@ export default function DuelLobbyPage() {
         photoURL: user.photoURL || '',
       };
       
-      const gameDocRef = doc(firestore, "duels", gameDoc.id);
-
       const updatedPlayers = [...gameData.players, player2];
       const updatedScores = { ...gameData.playerScores, [user.uid]: 0 };
 
@@ -107,7 +115,7 @@ export default function DuelLobbyPage() {
         startedAt: serverTimestamp() // Start the clock
       };
 
-      await setDoc(gameDocRef, updateData, { merge: true })
+      await updateDoc(gameDocRef, updateData)
         .catch(error => {
             const permissionError = new FirestorePermissionError({
                 path: gameDocRef.path,
@@ -124,8 +132,8 @@ export default function DuelLobbyPage() {
     } catch (error) {
        if (!(error instanceof FirestorePermissionError)) {
          errorEmitter.emit('permission-error', new FirestorePermissionError({
-           path: 'duels',
-           operation: 'list'
+           path: `duelGameCodes/${code}`,
+           operation: 'get'
          }));
        }
        setIsJoining(false);
