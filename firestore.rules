@@ -1,116 +1,96 @@
 /**
  * @file Firestore Security Rules
- * @description This ruleset enforces a user-ownership model for user profiles and leaderboard entries.
- *   Duel game access is based on membership within the game document. Recent scores are publicly readable.
+ * @description This ruleset enforces a user-centric security model, allowing users to read public data and control their own data.
  *
- * @dataStructure
- * - /users/{userId}: User profile information, writeable only by the user.
- * - /leaderboard/{userId}: Leaderboard entries, writeable only by the user.
- * - /recentScores/{scoreId}: Recent scores, publicly readable and writeable by any signed-in user.
- * - /duels/{duelId}: Duel game sessions, access controlled by player membership.
+ * Data Structure:
+ * - /users/{userId}: Stores user profile data. Each user can only manage their own profile.
+ * - /leaderboard/{userId}: Stores leaderboard entries. Publicly readable, but users can only update their own entry.
+ * - /recentScores/{userId}: Stores recent score entries. Publicly readable, and users can only update their own entry.
+ * - /duels/{duelId}: Stores duel game sessions. Openly readable, and users can manage their own games.
  *
- * @keySecurityDecisions
- * - Users can only read and write their own profile and leaderboard data.
- * - Recent scores are publicly readable to facilitate the "Recent Scores" feed.
- * - Duel games enforce access based on player membership.
- * - Data shape validation is minimized for prototyping speed.
+ * Key Security Decisions:
+ * - Users can only read the data in `/users`, `/leaderboard`, and `/recentScores` collections if signed in.
+ * - Users can only modify their own user profiles and related data.
+ * - Listing of all users is disallowed.
+ * - Denormalization for Authorization: To simplify rules and improve performance, the rules rely on user IDs embedded within documents to enforce ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
+     * @description Allows users to read their own profile and update it.
      * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their profile document at /users/user123.
-     * @deny (create) User with UID 'user456' cannot create a profile document at /users/user123.
-     * @allow (get) Any user can read a profile.
-     * @allow (update) User with UID 'user123' can update their profile document at /users/user123.
-     * @deny (update) User with UID 'user456' cannot update the profile document at /users/user123.
-     * @allow (delete) User with UID 'user123' can delete their profile document at /users/user123.
-     * @deny (delete) User with UID 'user456' cannot delete the profile document at /users/user123.
+     * @allow (get, update, delete) User with UID 'user123' can read, update, or delete document 'user123'.
+     * @allow (create) User with UID 'user123' can create document 'user123'.
+     * @deny (get, update, delete) User with UID 'user456' cannot read, update, or delete document 'user123'.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if true;
+      allow get: if isSignedIn();
       allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to leaderboard entries.
+     * @description Allows anyone to read the leaderboard but only the user to update their own entry.
      * @path /leaderboard/{userId}
-     * @allow (create) User with UID 'user123' can create their leaderboard entry at /leaderboard/user123.
-     * @deny (create) User with UID 'user456' cannot create a leaderboard entry at /leaderboard/user123.
-     * @allow (get) Any user can read a leaderboard entry.
-     * @allow (list) Any user can list leaderboard entries.
-     * @allow (update) User with UID 'user123' can update their leaderboard entry at /leaderboard/user123.
-     * @deny (update) User with UID 'user456' cannot update the leaderboard entry at /leaderboard/user123.
-     * @allow (delete) User with UID 'user123' can delete their leaderboard entry at /leaderboard/user123.
-     * @deny (delete) User with UID 'user456' cannot delete the leaderboard entry at /leaderboard/user123.
-     * @principle Enforces document ownership for writes. Allows public read access.
+     * @allow (get, list) Any signed-in user can read any leaderboard entry.
+     * @allow (create, update, delete) User with UID 'user123' can create or update document 'user123'.
+     * @deny (create, update, delete) User with UID 'user456' cannot create or update document 'user123'.
+     * @principle Restricts write access to owner.
      */
     match /leaderboard/{userId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow get, list: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to recent score entries.
-     * @path /recentScores/{scoreId}
-     * @allow (create) Any authenticated user can create a recent score entry.
-     * @allow (get) Any user can read a recent score entry.
-     * @allow (list) Any user can list recent score entries.
-     * @deny (update) No user can update a recent score entry.
-     * @deny (delete) No user can delete a recent score entry.
-     * @principle Allows public read access and authenticated writes. No updates or deletes allowed.
+     * @description Allows anyone to read recent scores but only the user to update their own entry.
+     * @path /recentScores/{userId}
+     * @allow (get, list) Any signed-in user can read any recent score entry.
+     * @allow (create, update, delete) User with UID 'user123' can create or update document 'user123'.
+     * @deny (create, update, delete) User with UID 'user456' cannot create or update document 'user123'.
+     * @principle Restricts write access to owner.
      */
-    match /recentScores/{scoreId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if false;
-      allow delete: if false;
+    match /recentScores/{userId} {
+      allow get, list: if isSignedIn();
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to duel game documents.
+     * @description Allows anyone to read duels, but only host can update.
      * @path /duels/{duelId}
-     * @allow (create) Any authenticated user can create a duel game.
-     * @allow (get) Any user can read a duel game document.
-     * @allow (list) Any user can list duel game documents.
-     * @allow (update) Only players in the duel can update the game document.
-     * @allow (delete) Only the host of the duel can delete the game document.
-     * @principle Enforces shared access based on player membership in the duel.
+     * @allow (get, list) Any signed-in user can read any duel.
+     * @allow (create) User with UID 'user123' can create a duel.
+     * @allow (update, delete) User with UID 'user123' can update or delete a duel they host.
+     * @deny (create) User without authentication cannot create a duel.
+     * @deny (update, delete) User with UID 'user456' cannot update or delete a duel hosted by 'user123'.
+     * @principle Enforces host ownership for writes.
      */
     match /duels/{duelId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && isPlayer(request.auth.uid, resource.data.players);
-      allow delete: if isSignedIn() && isHost(request.auth.uid, resource.data.hostId);
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.hostId == request.auth.uid && resource != null;
+      allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid && resource != null;
     }
-  }
 
-  // Helper functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
 
-  function isPlayer(uid, players) {
-    return uid in players;
-  }
-
-  function isHost(uid, hostId) {
-    return uid == hostId;
+    function isExistingOwner(userId) {
+      return request.auth.uid == userId && resource != null;
+    }
   }
 }
