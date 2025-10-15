@@ -20,17 +20,18 @@ interface TimeUpDialogProps {
   onRetry: () => void;
   solution: string;
   hint?: string;
+  isTrainingMode?: boolean;
 }
 
-export function TimeUpDialog({ isOpen, onRetry, solution, hint }: TimeUpDialogProps) {
+export function TimeUpDialog({ isOpen, onRetry, solution, hint, isTrainingMode }: TimeUpDialogProps) {
   const t = useTranslations();
   const { score, saveFinalScore } = useGame();
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isTrainingMode) {
       saveFinalScore(score);
     }
-  }, [isOpen, score, saveFinalScore]);
+  }, [isOpen, score, saveFinalScore, isTrainingMode]);
 
 
   return (
@@ -57,7 +58,7 @@ export function TimeUpDialog({ isOpen, onRetry, solution, hint }: TimeUpDialogPr
                     <p className="text-sm italic">{hint}</p>
                 </div>
             )}
-            <p className="text-sm text-destructive pt-2">{t('time_up_penalty')}</p>
+            {!isTrainingMode && <p className="text-sm text-destructive pt-2">{t('time_up_penalty')}</p>}
           </div>
           <p className="text-center text-sm italic text-muted-foreground">
             {t('time_up_quote')}

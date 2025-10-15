@@ -48,7 +48,7 @@ interface LevelData {
   jumbledLetters: string[];
 }
 
-export function GameClient() {
+export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { level, score, updateScore, nextLevel, history, addWordToHistory, settings } = useGame();
@@ -85,9 +85,9 @@ export function GameClient() {
 
   const handleTimeUp = useCallback(() => {
       stopTimer();
-      updateScore(-10); // Penalize for time up
+      if (!isTrainingMode) updateScore(-10); // Penalize for time up
       setShowTimeUp(true);
-  }, [updateScore, stopTimer]);
+  }, [updateScore, stopTimer, isTrainingMode]);
 
 
   const startTimer = useCallback(() => {
@@ -196,7 +196,7 @@ export function GameClient() {
 
 
   useEffect(() => {
-    if (user && firestore && score > 0) {
+    if (user && firestore && score > 0 && !isTrainingMode) {
       const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
       setDocumentNonBlocking(leaderboardRef, {
         displayName: user.displayName || "Joueur anonyme",
@@ -206,7 +206,7 @@ export function GameClient() {
       }, { merge: true });
     }
     setScoreKey(prev => prev + 1);
-  }, [score, user, firestore]);
+  }, [score, user, firestore, isTrainingMode]);
 
   useEffect(() => {
     setLevelKey(prev => prev + 1);
@@ -302,7 +302,7 @@ export function GameClient() {
                   return newDisabled;
               });
               setRevealUsed(true);
-              updateScore(-2); // Penalize for using hint
+              if (!isTrainingMode) updateScore(-2); // Penalize for using hint
           }
       }
   };
@@ -315,7 +315,7 @@ export function GameClient() {
     const cleanedInput = inputValue.trim();
 
     if (cleanedInput.toUpperCase() !== currentLevelData.solutionWord) {
-      updateScore(-5);
+      if (!isTrainingMode) updateScore(-5);
       setIsWrong(true);
       setTimeout(() => {
         setIsWrong(false);
@@ -333,22 +333,24 @@ export function GameClient() {
     
     stopTimer();
     let bonusPoints = 0;
-    try {
-      const originalityResult = await checkOriginality({
-        wordOrPhrase: cleanedInput,
-        previousWordsAndPhrases: history,
-      });
-      if (originalityResult.isOriginal) {
-        bonusPoints = originalityResult.bonusPoints;
+    if (!isTrainingMode) {
+      try {
+        const originalityResult = await checkOriginality({
+          wordOrPhrase: cleanedInput,
+          previousWordsAndPhrases: history,
+        });
+        if (originalityResult.isOriginal) {
+          bonusPoints = originalityResult.bonusPoints;
+        }
+      } catch (error) {
+        console.error("AI originality check failed:", error);
       }
-    } catch (error) {
-      console.error("AI originality check failed:", error);
     }
     
     const timeBonus = Math.floor(timeRemaining / 10);
     const totalPoints = 10 + bonusPoints + timeBonus;
 
-    updateScore(totalPoints);
+    if (!isTrainingMode) updateScore(totalPoints);
     addWordToHistory(cleanedInput);
     
     setLastRoundPoints({ points: totalPoints, bonus: bonusPoints + timeBonus });
@@ -469,15 +471,17 @@ export function GameClient() {
                  <Clock className="h-6 w-6 text-primary" />
                  <p className="text-2xl font-bold text-primary">{Math.ceil(timeRemaining)}</p>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">{t('score')}</p>
-                <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
-              </div>
+              {!isTrainingMode && (
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">{t('score')}</p>
+                  <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
+                </div>
+              )}
             </div>
             <CardTitle className="text-2xl font-semibold">
-              {t('challenge')}: {currentLevelData?.description}
+              {isTrainingMode ? t('training_mode') : `${t('challenge')}: ${currentLevelData?.description}`}
             </CardTitle>
-            <Progress value={progressPercentage} className="w-full mt-4" />
+            {!isTrainingMode && <Progress value={progressPercentage} className="w-full mt-4" />}
           </CardHeader>
         </Card>
         
@@ -546,14 +550,15 @@ export function GameClient() {
         isOpen={showLevelComplete}
         onContinue={handleNextLevel}
         level={level}
-        points={lastRoundPoints.points}
-        bonusPoints={lastRoundPoints.bonus}
+        points={isTrainingMode ? 0 : lastRoundPoints.points}
+        bonusPoints={isTrainingMode ? 0 : lastRoundPoints.bonus}
       />
       <TimeUpDialog 
         isOpen={showTimeUp}
         onRetry={handleRetry}
         solution={currentLevelData?.solutionWord || ""}
         hint={currentLevelData?.hint || ""}
+        isTrainingMode={isTrainingMode}
       />
     </div>
   );

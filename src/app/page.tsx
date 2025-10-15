@@ -91,7 +91,7 @@ export default function Home() {
             </Link>
           </Button>
           <Button asChild size="lg" variant="secondary" className="w-full">
-            <Link href="/play">
+            <Link href="/play?training=true">
               <Swords className="mr-2" />
               {t('training_mode')}
             </Link>
