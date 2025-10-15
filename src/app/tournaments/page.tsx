@@ -1,5 +1,4 @@
 
-
 import { SiteHeader } from "@/components/site-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,12 @@ const themes = [
     description: "Testez vos connaissances sur le monde du ballon rond.",
     icon: "⚽️",
   },
-  // D'autres thèmes pourront être ajoutés ici
+  {
+    name: "International",
+    slug: "international",
+    description: "Parcourez le monde en devinant le nom des pays.",
+    icon: "🌍",
+  },
 ];
 
 export default function TournamentsPage() {

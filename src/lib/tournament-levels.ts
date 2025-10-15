@@ -1,3 +1,4 @@
+
 export type TournamentLevel = {
   level: number;
   challenge: string;
@@ -48,6 +49,25 @@ export const tournamentLevels: TournamentCategoryLevels = {
       { level: 13, challenge: "MU", description: 'Contient "MU"', solutionWord: "MUNICH" },
     ],
   },
+  international: {
+    pays: [
+      { level: 1, challenge: "FR", description: 'Contient "FR"', solutionWord: "FRANCE" },
+      { level: 2, challenge: "ES", description: 'Contient "ES"', solutionWord: "ESPAGNE" },
+      { level: 3, challenge: "IT", description: 'Contient "IT"', solutionWord: "ITALIE" },
+      { level: 4, challenge: "AL", description: 'Contient "AL"', solutionWord: "ALLEMAGNE" },
+      { level: 5, challenge: "JA", description: 'Contient "JA"', solutionWord: "JAPON" },
+      { level: 6, challenge: "CH", description: 'Contient "CH"', solutionWord: "CHINE" },
+      { level: 7, challenge: "BR", description: 'Contient "BR"', solutionWord: "BRESIL" },
+      { level: 8, challenge: "AR", description: 'Contient "AR"', solutionWord: "ARGENTINE" },
+      { level: 9, challenge: "CA", description: 'Contient "CA"', solutionWord: "CANADA" },
+      { level: 10, challenge: "AU", description: 'Contient "AU"', solutionWord: "AUSTRALIE" },
+      { level: 11, challenge: "EG", description: 'Contient "EG"', solutionWord: "EGYPTE" },
+      { level: 12, challenge: "RU", description: 'Contient "RU"', solutionWord: "RUSSIE" },
+      { level: 13, challenge: "IN", description: 'Contient "IN"', solutionWord: "INDE" },
+      { level: 14, challenge: "SU", description: 'Contient "SU"', solutionWord: "SUEDE" },
+      { level: 15, challenge: "ME", description: 'Contient "ME"', solutionWord: "MEXIQUE" },
+    ]
+  }
 };
 
 export function getTournamentLevel(theme: string, category: string, level: number): TournamentLevel | null {

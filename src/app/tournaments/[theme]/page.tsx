@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/site-header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowRight, Medal, Users, ArrowLeft } from "lucide-react";
+import { ArrowRight, Medal, Users, ArrowLeft, Globe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { tournamentData } from "@/lib/tournament-data";
 import { notFound } from "next/navigation";
@@ -12,7 +12,8 @@ import { notFound } from "next/navigation";
 
 const ICONS: {[key: string]: React.ReactNode} = {
     joueurs: <Users className="h-6 w-6 text-primary" />,
-    equipes: <Medal className="h-6 w-6 text-primary" />
+    equipes: <Medal className="h-6 w-6 text-primary" />,
+    pays: <Globe className="h-6 w-6 text-primary" />
 }
 
 // Pour capitaliser la première lettre

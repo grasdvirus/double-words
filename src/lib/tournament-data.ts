@@ -1,3 +1,4 @@
+
 // This file is being deprecated in favor of tournament-levels.ts
 // It is kept for reference but is no longer actively used in the game logic.
 
@@ -51,6 +52,12 @@ export const tournamentData: TournamentData = {
       ],
     },
   },
+  international: {
+    pays: {
+        name: "Pays du Monde",
+        words: []
+    }
+  }
 };
 
 // This function is no longer the primary way to get words for tournaments.
