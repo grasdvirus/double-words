@@ -13,6 +13,24 @@
         "photoURL": {
           "type": "string",
           "description": "URL of the user's profile picture."
+        },
+        "palmares": {
+          "type": "object",
+          "description": "User's track record of leaderboard finishes.",
+          "properties": {
+            "firstPlace": {
+              "type": "number",
+              "description": "Number of times finished 1st."
+            },
+            "secondPlace": {
+              "type": "number",
+              "description": "Number of times finished 2nd."
+            },
+            "thirdPlace": {
+              "type": "number",
+              "description": "Number of times finished 3rd."
+            }
+          }
         }
       },
       "required": [

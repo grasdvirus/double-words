@@ -7,17 +7,21 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "@/hooks/use-translations";
+import { CountdownTimer } from "./countdown-timer";
 
 export default function LeaderboardPage() {
   const router = useRouter();
   const t = useTranslations();
+
+  // Date de fin de la saison (modifiable)
+  const seasonEndDate = new Date('2024-08-15T23:59:59');
 
   return (
     <div className="relative flex min-h-screen flex-col">
       <SiteHeader />
       <main className="flex-1 animate-fade-in">
         <div className="container py-8 max-w-4xl mx-auto">
-            <div className="relative mb-8 text-center">
+            <div className="relative mb-4 text-center">
                 <Button 
                     variant="ghost" 
                     onClick={() => router.back()}
@@ -31,6 +35,7 @@ export default function LeaderboardPage() {
                     {t('leaderboard_title')}
                 </h1>
             </div>
+            <CountdownTimer endDate={seasonEndDate} />
             <LeaderboardClient />
         </div>
       </main>
