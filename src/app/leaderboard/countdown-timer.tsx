@@ -33,12 +33,12 @@ export function CountdownTimer({ endDate }: CountdownTimerProps) {
   const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 1000);
 
-    return () => clearTimeout(timer);
-  });
+    return () => clearInterval(timer);
+  }, [endDate]);
 
   const timerComponents = Object.entries(timeLeft).map(([interval, value]) => {
     if (value < 0) return null;
