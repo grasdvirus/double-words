@@ -70,6 +70,14 @@ export const tournamentLevels: TournamentCategoryLevels = {
   }
 };
 
+export function getTournamentLevels(theme: string, category: string): TournamentLevel[] | null {
+    try {
+        return tournamentLevels[theme]?.[category] || null;
+    } catch (e) {
+        return null;
+    }
+}
+
 export function getTournamentLevel(theme: string, category: string, level: number): TournamentLevel | null {
     try {
         const levels = tournamentLevels[theme]?.[category];

@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useUser, useFirestore } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
-import { getTournamentLevel, getTournamentMaxLevel, TournamentLevel } from "@/lib/tournament-levels";
+import { getTournamentLevels, getTournamentMaxLevel, TournamentLevel } from "@/lib/tournament-levels";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -56,6 +56,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   const [currentLevelData, setCurrentLevelData] = useState<LevelData | null>(null);
   const [level, setLevel] = useState(1);
   const [maxLevel, setMaxLevel] = useState(0);
+  const [shuffledLevels, setShuffledLevels] = useState<TournamentLevel[]>([]);
 
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
@@ -103,9 +104,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     timerRef.current = requestAnimationFrame(animate);
   }, [stopTimer, handleTimeUp]);
 
-  const prepareLevelData = useCallback((forLevel: number): LevelData | null => {
-    const levelConfig = getTournamentLevel(theme, category, forLevel);
-    
+  const prepareLevelData = useCallback((levelConfig: TournamentLevel | null): LevelData | null => {
     if (!levelConfig) {
       return null;
     }
@@ -129,10 +128,12 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
       solutionWord: word,
       jumbledLetters: allLetters,
     };
-  }, [theme, category]);
+  }, []);
 
-  const setupLevel = useCallback((levelNumber: number, isRetry = false) => {
-    const data = prepareLevelData(levelNumber);
+  const setupLevel = useCallback((levelIndex: number, isRetry = false) => {
+    const levelConfig = shuffledLevels[levelIndex - 1] || null;
+    const data = prepareLevelData(levelConfig);
+    
     if (!data) {
       setCurrentLevelData(null); // End of tournament
       return;
@@ -147,14 +148,21 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     if (!isRetry) {
       startTimer();
     }
-  }, [startTimer, prepareLevelData]);
+  }, [startTimer, prepareLevelData, shuffledLevels]);
 
 
   useEffect(() => {
-    const max = getTournamentMaxLevel(theme, category);
-    if (max > 0) {
-      setMaxLevel(max);
-      setupLevel(level);
+    const allLevels = getTournamentLevels(theme, category);
+    if (allLevels) {
+      const shuffled = [...allLevels].sort(() => Math.random() - 0.5);
+      setShuffledLevels(shuffled);
+      setMaxLevel(allLevels.length);
+      const firstLevelData = prepareLevelData(shuffled[0]);
+      if (firstLevelData) {
+        setCurrentLevelData(firstLevelData);
+        setDisabledLetterIndexes(new Array(firstLevelData.jumbledLetters.length).fill(false));
+        startTimer();
+      }
     } else {
       showNotification({ title: t('error'), message: "This tournament does not exist.", type: 'error'});
     }
