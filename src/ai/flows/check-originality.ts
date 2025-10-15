@@ -59,7 +59,17 @@ const checkOriginalityFlow = ai.defineFlow(
     outputSchema: CheckOriginalityOutputSchema,
   },
   async input => {
-    const {output} = await checkOriginalityPrompt(input);
-    return output!;
+    try {
+      const {output} = await checkOriginalityPrompt(input);
+      return output!;
+    } catch (error) {
+      console.error('Error in checkOriginalityFlow:', error);
+      // In case of an API error (like 503), gracefully fail by returning a default value.
+      // This prevents the game from crashing and simply results in no bonus points.
+      return {
+        isOriginal: false,
+        bonusPoints: 0,
+      };
+    }
   }
 );
