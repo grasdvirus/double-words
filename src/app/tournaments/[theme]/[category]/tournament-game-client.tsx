@@ -58,7 +58,6 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   const [maxLevel, setMaxLevel] = useState(0);
 
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
-  const [revealedIndexes, setRevealedIndexes] = useState<number[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [isWrong, setIsWrong] = useState(false);
   const [scoreKey, setScoreKey] = useState(0);
@@ -142,7 +141,6 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     setCurrentLevelData(data);
     setInputValue("");
     setDisabledLetterIndexes(new Array(data.jumbledLetters.length).fill(false));
-    setRevealedIndexes([]);
     setShowLevelComplete(false);
     setShowTimeUp(false);
     
@@ -194,13 +192,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
   const handleBackspace = () => {
     if (inputValue.length === 0 || showTimeUp || !currentLevelData) return;
   
-    const lastCharIndex = inputValue.length - 1;
-    const lastChar = inputValue[lastCharIndex];
-  
-    if (revealedIndexes.includes(lastCharIndex)) {
-        return;
-    }
-  
+    const lastChar = inputValue[inputValue.length - 1];
     setInputValue((prev) => prev.slice(0, -1));
   
     const charCountsInInput = inputValue.slice(0, -1).split('').filter(c => c === lastChar).length;
@@ -249,7 +241,6 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
       setTimeout(() => {
         setIsWrong(false);
         setInputValue("");
-        setRevealedIndexes([]);
         if(currentLevelData) {
             setDisabledLetterIndexes(new Array(currentLevelData.jumbledLetters.length).fill(false));
         }
@@ -311,15 +302,13 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
           {Array.from({ length: currentLevelData.solutionWord.length }).map((_, i) => {
             const char = inputValue[i] || '';
-            const isRevealed = revealedIndexes.includes(i);
             return (
               <div
                   key={i}
                   className={cn(
                       "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
                       "bg-card transition-all duration-300",
-                      char && !isRevealed && "border-primary ring-2 ring-primary animate-pop-in",
-                      isRevealed && "border-accent ring-2 ring-accent text-accent animate-pop-in"
+                      char && "border-primary ring-2 ring-primary animate-pop-in"
                   )}
               >
                   {char}
@@ -445,8 +434,8 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
                     </div>
                 </div>
               )}
-              <ArrowRight className="mr-2" />
               {t('submit')}
+              {!isSubmitting && <ArrowRight className="ml-2" />}
             </Button>
           </form>
         </div>

@@ -9,7 +9,7 @@ import { LevelCompleteDialog } from "@/components/level-complete-dialog";
 import { TimeUpDialog } from "@/components/time-up-dialog";
 import { checkOriginality } from "@/ai/flows/check-originality";
 import { evaluateAnswer } from "@/ai/flows/evaluate-answer";
-import { ArrowRight, Undo2, Clock, Lightbulb } from "lucide-react";
+import { ArrowRight, Undo2, Clock, Lightbulb, Key } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { LetterGrid } from "@/components/letter-grid";
 import { cn } from "@/lib/utils";
@@ -64,13 +64,12 @@ export function GameClient() {
   const [nextLevelData, setNextLevelData] = useState<LevelData | null>(null);
 
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
-  const [revealedIndexes, setRevealedIndexes] = useState<number[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [isWrong, setIsWrong] = useState(false);
   const [scoreKey, setScoreKey] = useState(0);
   const [levelKey, setLevelKey] = useState(0);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-
+  const [revealUsed, setRevealUsed] = useState(false);
 
   const timerRef = useRef<number | null>(null);
   const levelStartTimeRef = useRef<number | null>(null);
@@ -167,9 +166,9 @@ export function GameClient() {
     setCurrentLevelData(data);
     setInputValue("");
     setDisabledLetterIndexes(new Array(data.jumbledLetters.length).fill(false));
-    setRevealedIndexes([]);
     setShowLevelComplete(false);
     setShowTimeUp(false);
+    setRevealUsed(false);
     
     if (!isRetry) {
       startTimer();
@@ -229,42 +228,30 @@ export function GameClient() {
   const handleBackspace = () => {
     if (inputValue.length === 0 || showTimeUp || !currentLevelData) return;
   
-    const lastCharIndex = inputValue.length - 1;
-    const lastChar = inputValue[lastCharIndex];
-  
-    // If the last letter was revealed by a hint, do nothing on backspace.
-    // The user has to reset if they want to change it. This is simpler.
-    if (revealedIndexes.includes(lastCharIndex)) {
-        return;
-    }
-  
+    const lastChar = inputValue[inputValue.length - 1];
     setInputValue((prev) => prev.slice(0, -1));
   
     // Re-enable the corresponding letter in the grid
-    const charCountsInInput = inputValue.slice(0, -1).split('').filter(c => c === lastChar).length;
-    let enabledCount = 0;
-    let indexToEnable = -1;
+    const currentInputChars = inputValue.slice(0, -1).split('');
+    const countOfCharInNewInput = currentInputChars.filter(c => c === lastChar).length;
 
-    for (let i = 0; i < currentLevelData.jumbledLetters.length; i++) {
-        if (currentLevelData.jumbledLetters[i] === lastChar) {
-            const isRevealed = revealedIndexes.some(revealedIdx => 
-                inputValue[revealedIdx] === lastChar && 
-                currentLevelData.jumbledLetters[i] === lastChar
-            );
-            if (disabledLetterIndexes[i] && !isRevealed) {
-                if (enabledCount === charCountsInInput) {
-                    indexToEnable = i;
-                    break;
-                }
-                enabledCount++;
+    let countOfDisabledCharInGrid = 0;
+    let indexToReEnable = -1;
+
+    for(let i=0; i < currentLevelData.jumbledLetters.length; i++) {
+        if(currentLevelData.jumbledLetters[i] === lastChar && disabledLetterIndexes[i]) {
+             if(countOfDisabledCharInGrid === countOfCharInNewInput) {
+                indexToReEnable = i;
+                break;
             }
+            countOfDisabledCharInGrid++;
         }
     }
 
-    if (indexToEnable !== -1) {
+    if (indexToReEnable !== -1) {
         setDisabledLetterIndexes(prev => {
             const newDisabled = [...prev];
-            newDisabled[indexToEnable] = false;
+            newDisabled[indexToReEnable] = false;
             return newDisabled;
         });
     }
@@ -278,56 +265,45 @@ export function GameClient() {
         type: 'info',
         duration: 'persistent',
       });
-      updateScore(-2); // Penalize for using hint
     }
   };
   
   const handleRevealLetter = () => {
-      if (!currentLevelData || revealedIndexes.length > 0 || inputValue.length >= currentLevelData.solutionWord.length) return;
+      if (!currentLevelData || revealUsed || inputValue.length >= currentLevelData.solutionWord.length) return;
       
-      updateScore(-2);
-
       const solution = currentLevelData.solutionWord;
-      const currentInput = inputValue.split('');
-      
-      let possibleIndexes: number[] = [];
-      for(let i=0; i < solution.length; i++) {
-          if (currentInput[i] !== solution[i]) {
-              possibleIndexes.push(i);
-          }
-      }
+      const currentInput = inputValue;
 
-      if(possibleIndexes.length === 0) return;
+      // Find the first letter of the solution that is not yet in the input
+      if (currentInput.length < solution.length) {
+          const nextLetter = solution[currentInput.length];
+          const nextInput = currentInput + nextLetter;
 
-      const revealIndex = possibleIndexes[Math.floor(Math.random() * possibleIndexes.length)];
-      const letterToReveal = solution[revealIndex];
-
-      // Disable the first available matching letter in the grid
-      let gridIndexToDisable = -1;
-      for (let i = 0; i < currentLevelData.jumbledLetters.length; i++) {
-          if (currentLevelData.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
-              gridIndexToDisable = i;
-              break;
-          }
-      }
-
-      if (gridIndexToDisable !== -1) {
-          const newDisabled = [...disabledLetterIndexes];
-          newDisabled[gridIndexToDisable] = true;
-          setDisabledLetterIndexes(newDisabled);
+          // Find the corresponding letter in the grid to disable it
+          const charCountsInInput = nextInput.split('').filter(c => c === nextLetter).length;
           
-          // Update input value
-          let newInputValue = "";
-          for(let i=0; i < solution.length; i++) {
-              if (i === revealIndex) {
-                  newInputValue += letterToReveal;
-              } else {
-                  newInputValue += inputValue[i] || "";
+          let enabledCount = 0;
+          let indexToDisable = -1;
+          for (let i = 0; i < currentLevelData.jumbledLetters.length; i++) {
+              if (currentLevelData.jumbledLetters[i] === nextLetter && !disabledLetterIndexes[i]) {
+                  if (enabledCount === charCountsInInput -1) {
+                      indexToDisable = i;
+                      break;
+                  }
+                  enabledCount++;
               }
           }
-
-          setInputValue(newInputValue.slice(0, solution.length));
-          setRevealedIndexes(prev => [...prev, revealIndex]);
+          
+          if(indexToDisable !== -1) {
+              setInputValue(nextInput);
+              setDisabledLetterIndexes(prev => {
+                  const newDisabled = [...prev];
+                  newDisabled[indexToDisable] = true;
+                  return newDisabled;
+              });
+              setRevealUsed(true);
+              updateScore(-2); // Penalize for using hint
+          }
       }
   };
 
@@ -344,10 +320,10 @@ export function GameClient() {
       setTimeout(() => {
         setIsWrong(false);
         setInputValue("");
-        setRevealedIndexes([]);
         if(currentLevelData) {
             setDisabledLetterIndexes(new Array(currentLevelData.jumbledLetters.length).fill(false));
         }
+        setRevealUsed(false);
       }, 800);
       setTimeout(() => {
         setIsSubmitting(false);
@@ -439,15 +415,13 @@ export function GameClient() {
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
           {Array.from({ length: currentLevelData.solutionWord.length }).map((_, i) => {
             const char = inputValue[i] || '';
-            const isRevealed = revealedIndexes.includes(i);
             return (
               <div
                   key={i}
                   className={cn(
                       "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
                       "bg-card transition-all duration-300",
-                      char && !isRevealed && "border-primary ring-2 ring-primary animate-pop-in",
-                      isRevealed && "border-accent ring-2 ring-accent text-accent animate-pop-in"
+                      char && "border-primary ring-2 ring-primary animate-pop-in"
                   )}
               >
                   {char}
@@ -512,8 +486,8 @@ export function GameClient() {
                 <Lightbulb className="mr-2 h-4 w-4" />
                 {t('hint')}
             </Button>
-             <Button variant="outline" size="sm" onClick={handleRevealLetter} disabled={isSubmitting || showTimeUp || showLevelComplete || revealedIndexes.length > 0 || !currentLevelData}>
-                <Lightbulb className="mr-2 h-4 w-4" />
+             <Button variant="outline" size="sm" onClick={handleRevealLetter} disabled={isSubmitting || showTimeUp || showLevelComplete || revealUsed || !currentLevelData}>
+                <Key className="mr-2 h-4 w-4" />
                 {t('hint_penalty')}
             </Button>
         </div>
@@ -561,8 +535,8 @@ export function GameClient() {
                     </div>
                 </div>
               )}
-              <ArrowRight className="mr-2" />
               {t('submit')}
+              {!isSubmitting && <ArrowRight className="mr-2" />}
             </Button>
           </form>
         </div>

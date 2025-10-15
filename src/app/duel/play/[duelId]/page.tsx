@@ -51,7 +51,6 @@ export default function DuelPlayPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWrong, setIsWrong] = useState(false);
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
-  const [revealedInputIndexes, setRevealedInputIndexes] = useState<number[]>([]);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   
   const currentChallenge = duelData?.currentChallenge;
@@ -178,7 +177,6 @@ export default function DuelPlayPage() {
         setInputValue("");
         const letterCount = currentChallenge.jumbledLetters?.length || 0;
         setDisabledLetterIndexes(new Array(letterCount).fill(false));
-        setRevealedInputIndexes([]);
     }
   }, [currentChallenge]);
 
@@ -192,41 +190,36 @@ export default function DuelPlayPage() {
     });
   };
   
-const handleBackspace = () => {
+  const handleBackspace = () => {
     if (inputValue.length === 0 || !currentChallenge || !currentChallenge.jumbledLetters) return;
 
     const lastChar = inputValue[inputValue.length - 1];
-    const lastCharIndex = inputValue.length - 1;
-
-    // Prevent deleting a revealed letter
-    if (revealedInputIndexes.includes(lastCharIndex)) {
-        return;
-    }
-
     setInputValue(prev => prev.slice(0, -1));
 
-    // Find the correct letter in the grid to re-enable
-    const newInputValue = inputValue.slice(0, -1);
-    const charCountInInput = newInputValue.split('').filter(c => c === lastChar).length;
-    let disabledCountInGrid = 0;
+    // Find the last disabled index for the character being removed and re-enable it.
+    let lastIndex = -1;
+    for (let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
+        if (disabledLetterIndexes[i] && currentChallenge.jumbledLetters[i] === lastChar) {
+            // A more robust check might be needed if letters can appear multiple times
+            // This assumes we are re-enabling the last one that was disabled
+            lastIndex = i;
+            break;
+        }
+    }
+    
+    // To handle multiple same letters, we need to find which one to re-enable
+    const currentInputChars = inputValue.slice(0, -1).split('');
+    const countOfCharInNewInput = currentInputChars.filter(c => c === lastChar).length;
+
+    let countOfDisabledCharInGrid = 0;
     let indexToReEnable = -1;
-
-    for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
-        if (currentChallenge.jumbledLetters[i] === lastChar && disabledLetterIndexes[i]) {
-            // Check if this grid letter corresponds to a revealed letter in the input
-            const isTiedToRevealed = revealedInputIndexes.some(revealedIdx => 
-                inputValue[revealedIdx] === lastChar &&
-                // A simplistic check; this assumes we disabled the first available grid letters first
-                i < disabledLetterIndexes.lastIndexOf(true) 
-            );
-
-            if (!isTiedToRevealed) {
-                if (disabledCountInGrid === charCountInInput) {
-                    indexToReEnable = i;
-                    break;
-                }
-                disabledCountInGrid++;
+    for(let i=0; i < currentChallenge.jumbledLetters.length; i++) {
+        if(currentChallenge.jumbledLetters[i] === lastChar && disabledLetterIndexes[i]) {
+             if(countOfDisabledCharInGrid === countOfCharInNewInput) {
+                indexToReEnable = i;
+                break;
             }
+            countOfDisabledCharInGrid++;
         }
     }
 
@@ -247,61 +240,8 @@ const handleBackspace = () => {
             type: 'info',
             duration: 'persistent',
           });
-          // No penalty in duels for hint, only for reveal
         }
     };
-    
-    const handleRevealLetter = async () => {
-        if (!currentChallenge || !user || !duelRef || revealedInputIndexes.length > 0) return;
-
-        const solution = currentChallenge.solutionWord;
-        const currentInputArray = inputValue.split('');
-
-        const unrevealedIndexes = [];
-        for (let i = 0; i < solution.length; i++) {
-            if (currentInputArray[i] !== solution[i]) {
-                unrevealedIndexes.push(i);
-            }
-        }
-        
-        if (unrevealedIndexes.length === 0) return;
-
-        // Apply penalty
-        const newPoints = Math.max(0, (duelData?.playerScores?.[user.uid] || 0) - 3);
-        await updateDoc(duelRef, {
-            [`playerScores.${user.uid}`]: newPoints,
-        });
-
-        const revealIndex = unrevealedIndexes[Math.floor(Math.random() * unrevealedIndexes.length)];
-        const letterToReveal = solution[revealIndex];
-
-        // Find a grid letter to disable
-        let gridIndexToDisable = -1;
-        for (let i = 0; i < currentChallenge.jumbledLetters.length; i++) {
-            if (currentChallenge.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
-                gridIndexToDisable = i;
-                break;
-            }
-        }
-
-        if (gridIndexToDisable !== -1) {
-            setDisabledLetterIndexes(prev => {
-                const newDisabled = [...prev];
-                newDisabled[gridIndexToDisable] = true;
-                return newDisabled;
-            });
-        }
-        
-        // Update input
-        const finalInputArray = solution.split('').map((char, i) => {
-            if (i === revealIndex) return char;
-            return inputValue[i] || ''; // Keep existing correct letters
-        });
-        
-        setInputValue(finalInputArray.join('').slice(0, solution.length));
-        setRevealedInputIndexes(prev => [...prev, revealIndex]);
-    };
-
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -315,7 +255,6 @@ const handleBackspace = () => {
       setTimeout(() => {
         setIsWrong(false);
         setInputValue("");
-        setRevealedInputIndexes([]);
         if(currentChallenge && currentChallenge.jumbledLetters) {
             setDisabledLetterIndexes(new Array(currentChallenge.jumbledLetters.length).fill(false));
         }
@@ -351,8 +290,7 @@ const handleBackspace = () => {
                 className={cn(
                     "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
                     "bg-card transition-all duration-300",
-                    inputValue[i] && !revealedInputIndexes.includes(i) && "border-primary ring-2 ring-primary animate-pop-in",
-                    revealedInputIndexes.includes(i) && "border-accent ring-2 ring-accent text-accent animate-pop-in"
+                    inputValue[i] && "border-primary ring-2 ring-primary animate-pop-in"
                 )}
             >
                 {inputValue[i]}
@@ -390,11 +328,6 @@ const handleBackspace = () => {
     const allParticipants = [];
     if (me) allParticipants.push(me);
     if (otherPlayer) allParticipants.push(otherPlayer);
-    else if (duelData.players.length < 2 && me) {
-      // This is brittle, relies on me/otherPlayer logic. A better way would be to store original players list.
-      // For now, we assume if otherPlayer is null, it's because they are not in the current players array.
-      // This part is tricky. Let's rely on the final scores.
-    }
     
     const finalPlayerList = Object.keys(duelData.playerScores).map(uid => {
       const playerInfo = duelData.players.find(p => p.uid === uid) 
@@ -404,7 +337,7 @@ const handleBackspace = () => {
         ...playerInfo,
         score: duelData.playerScores[uid]
       };
-    });
+    }).sort((a,b) => (b.score || 0) - (a.score || 0));
     
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center">
@@ -540,10 +473,6 @@ const handleBackspace = () => {
                         <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || !currentChallenge.hint}>
                             <Lightbulb className="mr-2 h-4 w-4" />
                             {t('hint')}
-                        </Button>
-                         <Button variant="outline" size="sm" onClick={handleRevealLetter} disabled={isSubmitting || revealedInputIndexes.length > 0 || !currentChallenge.solutionWord}>
-                            <Key className="mr-2 h-4 w-4" />
-                            {t('hint_penalty')}
                         </Button>
                     </div>
                     
