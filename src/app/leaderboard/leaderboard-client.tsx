@@ -12,6 +12,7 @@ import { useTranslations } from "@/hooks/use-translations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { cn } from "@/lib/utils";
 
 interface Player {
   id: string;
@@ -27,6 +28,19 @@ const getTier = (score: number) => {
   if (score >= 200) return { name: "Argent", icon: <Shield className="h-5 w-5 text-slate-400" /> };
   return { name: "Bronze", icon: <Shield className="h-5 w-5 text-orange-400" /> };
 };
+
+const RankIndicator = ({ rank }: { rank: number }) => {
+    if (rank === 1) {
+      return <Trophy className="h-7 w-7 text-yellow-400" />;
+    }
+    if (rank === 2) {
+      return <Medal className="h-7 w-7 text-slate-400" />;
+    }
+    if (rank === 3) {
+      return <Medal className="h-7 w-7 text-orange-400" />;
+    }
+    return <span className="font-medium text-lg">{rank}</span>;
+  };
 
 function LeaderboardTable({ players, isLoading, isRecent = false }: { players: Player[] | null, isLoading: boolean, isRecent?: boolean }) {
   const t = useTranslations();
@@ -63,9 +77,20 @@ function LeaderboardTable({ players, isLoading, isRecent = false }: { players: P
         {players?.map((player, index) => {
           const tier = getTier(player.score);
           const date = player.updatedAt ? new Date(player.updatedAt.seconds * 1000) : null;
+          const rank = index + 1;
           return (
-            <TableRow key={player.id + index} className="hover:bg-white/5">
-              <TableCell className="font-medium text-center text-lg">{index + 1}</TableCell>
+            <TableRow 
+                key={player.id + index} 
+                className={cn(
+                    "transition-transform duration-300",
+                    rank > 3 && "hover:scale-[1.02] hover:bg-white/5"
+                )}
+            >
+              <TableCell className="font-medium text-center">
+                <div className="flex justify-center items-center h-full">
+                    <RankIndicator rank={rank} />
+                </div>
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-3 font-semibold">
                   <Avatar className="h-9 w-9">
