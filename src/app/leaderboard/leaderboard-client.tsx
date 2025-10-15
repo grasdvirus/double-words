@@ -140,6 +140,18 @@ export function LeaderboardClient() {
 
   const { data: topPlayersData, isLoading: isLoadingTop } = useCollection<Player>(topPlayersQuery);
   const { data: recentScoresData, isLoading: isLoadingRecent } = useCollection<Player>(recentScoresQuery);
+  
+  const uniqueRecentScores = React.useMemo(() => {
+    if (!recentScoresData) return null;
+    const seen = new Map<string, Player>();
+    recentScoresData.forEach(score => {
+        if (!score.uid) return;
+        if (!seen.has(score.uid)) {
+            seen.set(score.uid, score);
+        }
+    });
+    return Array.from(seen.values());
+  }, [recentScoresData]);
 
 
   return (
@@ -157,10 +169,11 @@ export function LeaderboardClient() {
              <LeaderboardTable players={topPlayersData} isLoading={isLoadingTop} />
           </TabsContent>
           <TabsContent value="recent-scores">
-             <LeaderboardTable players={recentScoresData} isLoading={isLoadingRecent} isRecent={true} />
+             <LeaderboardTable players={uniqueRecentScores} isLoading={isLoadingRecent} isRecent={true} />
           </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
   );
 }
+
