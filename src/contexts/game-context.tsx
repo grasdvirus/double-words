@@ -3,8 +3,7 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, doc, getDoc, serverTimestamp, setDoc, addDoc } from 'firebase/firestore';
-import { User } from 'firebase/auth';
+import { collection, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 export interface GameSettings {
   language: 'FR' | 'EN';
@@ -78,37 +77,43 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [gameState, isLoaded]);
 
   const saveFinalScore = useCallback(async (finalScore: number) => {
-    if (!user || !firestore || finalScore <= 0) return;
-
-    // 1. Save to recent scores
-    const recentScoresRef = collection(firestore, 'recentScores');
-    const recentScoreData = {
+    if (!user || !firestore) return;
+    
+    const userData = {
       uid: user.uid,
       displayName: user.displayName || "Anonyme",
       photoURL: user.photoURL || "",
+    };
+
+    // 1. Update the "Recent Score" for this user. This overwrites their previous recent score.
+    const recentScoreRef = doc(firestore, 'recentScores', user.uid);
+    await setDoc(recentScoreRef, {
+      ...userData,
       score: finalScore,
       updatedAt: serverTimestamp(),
-    };
-    await addDoc(recentScoresRef, recentScoreData);
+    });
 
-    // 2. Update all-time high score
+    // 2. Update the "All-Time High Score" in the main leaderboard, only if the new score is higher.
     const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
     const docSnap = await getDoc(leaderboardRef);
 
-    if (docSnap.exists()) {
-      const currentHighScore = docSnap.data().score || 0;
-      if (finalScore > currentHighScore) {
-        await setDoc(leaderboardRef, { score: finalScore, updatedAt: serverTimestamp() }, { merge: true });
-      }
-    } else {
-      // First time saving a score
+    const currentHighScore = docSnap.exists() ? docSnap.data().score || 0 : 0;
+
+    if (finalScore > currentHighScore) {
       await setDoc(leaderboardRef, {
-        displayName: user.displayName || "Anonyme",
-        photoURL: user.photoURL || "",
+        ...userData,
+        score: finalScore,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } else if (!docSnap.exists()) {
+       // If the user is not on the leaderboard yet, add them with their first score.
+       await setDoc(leaderboardRef, {
+        ...userData,
         score: finalScore,
         updatedAt: serverTimestamp(),
       });
     }
+
   }, [user, firestore]);
 
   const nextLevel = useCallback(() => {

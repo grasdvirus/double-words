@@ -135,22 +135,11 @@ export function LeaderboardClient() {
   
   const recentScoresQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, "recentScores"), orderBy("updatedAt", "desc"), limit(25));
+    return query(collection(firestore, "recentScores"), orderBy("updatedAt", "desc"), limit(10));
   }, [firestore]);
 
   const { data: topPlayersData, isLoading: isLoadingTop } = useCollection<Player>(topPlayersQuery);
   const { data: recentScoresData, isLoading: isLoadingRecent } = useCollection<Player>(recentScoresQuery);
-  
-  const uniqueRecentScores = React.useMemo(() => {
-    if (!recentScoresData) return null;
-    const uniqueScores = new Map<string, Player>();
-    for (const score of recentScoresData) {
-        if(score.uid && !uniqueScores.has(score.uid)) {
-            uniqueScores.set(score.uid, score);
-        }
-    }
-    return Array.from(uniqueScores.values()).slice(0, 10);
-  }, [recentScoresData]);
 
 
   return (
@@ -168,7 +157,7 @@ export function LeaderboardClient() {
              <LeaderboardTable players={topPlayersData} isLoading={isLoadingTop} />
           </TabsContent>
           <TabsContent value="recent-scores">
-             <LeaderboardTable players={uniqueRecentScores} isLoading={isLoadingRecent} isRecent={true} />
+             <LeaderboardTable players={recentScoresData} isLoading={isLoadingRecent} isRecent={true} />
           </TabsContent>
         </Tabs>
       </CardContent>

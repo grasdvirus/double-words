@@ -231,11 +231,11 @@
       },
       "description": "Stores the highest score for each user. Publicly readable, but a user can only write to their own entry."
     },
-    "/recentScores/{scoreId}": {
+    "/recentScores/{userId}": {
       "schema": {
         "$ref": "#/entities/RecentScoreEntry"
       },
-      "description": "Stores individual game scores for the 'Recent Scores' feed. Any authenticated user can write to this collection."
+      "description": "Stores the most recent game score for each user. Any authenticated user can write to their own document, and it is publicly readable."
     },
     "/duels/{duelId}": {
       "schema": {
