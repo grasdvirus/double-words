@@ -18,6 +18,7 @@ import { Progress } from '@/components/ui/progress';
 import { useNotification } from '@/contexts/notification-context';
 import { useTranslations } from '@/hooks/use-translations';
 import { useGame } from '@/hooks/use-game';
+import { playSound } from '@/lib/sounds';
 
 
 const shuffle = (array: string[]) => {
@@ -182,6 +183,7 @@ export default function DuelPlayPage() {
 
   const handleKeyPress = (key: string, index: number) => {
     if (!currentChallenge || !currentChallenge.solutionWord || inputValue.length >= currentChallenge.solutionWord.length) return;
+    playSound('key', settings);
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -517,5 +519,7 @@ export default function DuelPlayPage() {
     </div>
   );
 }
+
+    
 
     

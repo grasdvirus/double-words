@@ -18,6 +18,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useNotification } from "@/contexts/notification-context";
 import { useTranslations } from "@/hooks/use-translations";
+import { playSound } from "@/lib/sounds";
 
 const LEVEL_TIME = 60; // 60 seconds per level
 
@@ -44,7 +45,7 @@ interface TournamentGameClientProps {
 export function TournamentGameClient({ theme, category }: TournamentGameClientProps) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { score, updateScore } = useGame();
+  const { score, updateScore, settings } = useGame();
   const t = useTranslations();
   
   const [inputValue, setInputValue] = useState("");
@@ -189,6 +190,7 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
 
   const handleKeyPress = (key: string, index: number) => {
     if (!currentLevelData || inputValue.length >= currentLevelData.solutionWord.length || showTimeUp) return;
+    playSound('key', settings);
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -478,3 +480,5 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     </div>
   );
 }
+
+    

@@ -19,6 +19,7 @@ import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { gameLevels } from "@/lib/game-levels";
 import { useNotification } from "@/contexts/notification-context";
 import { useTranslations } from "@/hooks/use-translations";
+import { playSound } from "@/lib/sounds";
 
 
 const LEVEL_TIME = 60; // 60 seconds per level
@@ -217,6 +218,7 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
     if (notification?.type === 'info') {
       hideNotification();
     }
+    playSound('key', settings);
     setInputValue((prev) => prev + key);
     setDisabledLetterIndexes(prev => {
         const newDisabled = [...prev];
@@ -492,7 +494,7 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
                 </div>
               )}
             </div>
-            <CardTitle className="text-2xl font-semibold flex items-center justify-center flex-wrap">
+             <CardTitle className="text-2xl font-semibold flex items-center justify-center flex-wrap">
               {isTrainingMode && <span className="text-muted-foreground font-normal mr-2">{t('training_mode')} -</span>}
               <span className="mr-2">{t('challenge')}:</span> {renderChallengeTitle()}
             </CardTitle>
@@ -555,7 +557,7 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
                 </div>
               )}
               {t('submit')}
-              {!isSubmitting && <ArrowRight className="mr-2" />}
+              {!isSubmitting && <ArrowRight className="ml-2" />}
             </Button>
           </form>
         </div>
@@ -578,3 +580,5 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
     </div>
   );
 }
+
+    
