@@ -9,12 +9,16 @@ import { collection, query, orderBy, limit } from "firebase/firestore";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMemoFirebase } from "@/firebase/provider";
 import { useTranslations } from "@/hooks/use-translations";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 interface Player {
   id: string;
   displayName: string;
   score: number;
   photoURL?: string;
+  updatedAt?: { seconds: number, nanoseconds: number };
 }
 
 const getTier = (score: number) => {
@@ -24,76 +28,112 @@ const getTier = (score: number) => {
   return { name: "Bronze", icon: <Shield className="h-5 w-5 text-orange-400" /> };
 };
 
+function LeaderboardTable({ players, isLoading, isRecent = false }: { players: Player[] | null, isLoading: boolean, isRecent?: boolean }) {
+  const t = useTranslations();
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-40">
+        <div className="section-center scale-50">
+          <div className="section-path">
+            <div className="globe">
+              <div className="wrapper"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-[80px] text-center">{t('rank')}</TableHead>
+          <TableHead>{t('player')}</TableHead>
+          {isRecent ? (
+            <TableHead className="hidden md:table-cell text-center">{t('date')}</TableHead>
+          ) : (
+            <TableHead className="hidden md:table-cell">{t('tier')}</TableHead>
+          )}
+          <TableHead className="text-right">{t('score')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {players?.map((player, index) => {
+          const tier = getTier(player.score);
+          const date = player.updatedAt ? new Date(player.updatedAt.seconds * 1000) : null;
+          return (
+            <TableRow key={player.id + index} className="hover:bg-white/5">
+              <TableCell className="font-medium text-center text-lg">{index + 1}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-3 font-semibold">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={player.photoURL} alt={player.displayName} />
+                    <AvatarFallback>{player.displayName?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  {player.displayName}
+                </div>
+              </TableCell>
+              {isRecent ? (
+                <TableCell className="hidden md:table-cell text-center">
+                    {date ? formatDistanceToNow(date, { addSuffix: true, locale: fr }) : '-'}
+                </TableCell>
+              ) : (
+                <TableCell className="hidden md:table-cell">
+                  <div className="flex items-center gap-2">
+                    {tier.icon}
+                    {tier.name}
+                  </div>
+                </TableCell>
+              )}
+              <TableCell className="text-right font-mono text-lg">{player.score}</TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  );
+}
+
+
 export function LeaderboardClient() {
   const firestore = useFirestore();
   const t = useTranslations();
-  const leaderboardQuery = useMemoFirebase(() => {
+
+  const topPlayersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return query(collection(firestore, "leaderboard"), orderBy("score", "desc"), limit(10));
   }, [firestore]);
   
-  const { data: leaderboardData, isLoading } = useCollection<Player>(leaderboardQuery);
+  const recentScoresQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "recentScores"), orderBy("updatedAt", "desc"), limit(10));
+  }, [firestore]);
+
+  const { data: topPlayersData, isLoading: isLoadingTop } = useCollection<Player>(topPlayersQuery);
+  const { data: recentScoresData, isLoading: isLoadingRecent } = useCollection<Player>(recentScoresQuery);
+
 
   return (
     <Card>
-        <CardHeader>
-          <CardTitle>{t('leaderboard_top10')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-             <div className="flex justify-center items-center h-40">
-                <div className="section-center scale-50">
-                    <div className="section-path">
-                        <div className="globe">
-                        <div className="wrapper">
-                            <span></span><span></span><span></span><span></span>
-                            <span></span><span></span><span></span><span></span>
-                            <span></span><span></span><span></span><span></span>
-                            <span></span><span></span><span></span><span></span>
-                        </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px] text-center">{t('rank')}</TableHead>
-                  <TableHead>{t('player')}</TableHead>
-                  <TableHead className="hidden md:table-cell">{t('tier')}</TableHead>
-                  <TableHead className="text-right">{t('score')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leaderboardData?.map((player, index) => {
-                  const tier = getTier(player.score);
-                  return (
-                    <TableRow key={player.id} className="hover:bg-white/5">
-                      <TableCell className="font-medium text-center text-lg">{index + 1}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3 font-semibold">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={player.photoURL} alt={player.displayName} />
-                            <AvatarFallback>{player.displayName?.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          {player.displayName}
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        <div className="flex items-center gap-2">
-                          {tier.icon}
-                          {tier.name}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-lg">{player.score}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <CardHeader>
+        <CardTitle>{t('leaderboard_title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="top-scores">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="top-scores">{t('top_players')}</TabsTrigger>
+            <TabsTrigger value="recent-scores">{t('recent_scores')}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="top-scores">
+             <LeaderboardTable players={topPlayersData} isLoading={isLoadingTop} />
+          </TabsContent>
+          <TabsContent value="recent-scores">
+             <LeaderboardTable players={recentScoresData} isLoading={isLoadingRecent} isRecent={true} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

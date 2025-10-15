@@ -10,6 +10,7 @@ export const translations = {
     'continue': 'Continuer',
     'submit': 'Valider',
     'connect': 'Connexion',
+    'date': 'Date',
     
     // Notifications
     'error': 'Erreur',
@@ -53,7 +54,7 @@ export const translations = {
     'challenge': 'Défi',
     'time_remaining': 'Temps restant',
     'preparing_level': 'Préparation du niveau...',
-    'hint_penalty': 'Révéler (-3 pts)',
+    'hint_penalty': 'Révéler (-2 pts)',
     'level_complete_title': 'Bravo ! Niveau {0} terminé !',
     'level_complete_description': 'Vous êtes un véritable maître des mots.',
     'points_won': 'Points gagnés',
@@ -135,8 +136,10 @@ export const translations = {
     'rules_leaderboard_text': 'Connectez-vous avec votre compte Google pour que votre score soit enregistré et apparaisse dans le classement des meilleurs joueurs !',
     
     // Leaderboard
-    'leaderboard_title': 'Classement',
+    'leaderboard_title': 'Classements',
     'leaderboard_top10': 'Top 10 des Joueurs',
+    'top_players': 'Meilleurs Joueurs',
+    'recent_scores': 'Scores Récents',
     'rank': 'Rang',
     'player': 'Joueur',
     'tier': 'Niveau',
@@ -178,6 +181,7 @@ export const translations = {
     'continue': 'Continue',
     'submit': 'Submit',
     'connect': 'Login',
+    'date': 'Date',
 
     // Notifications
     'error': 'Error',
@@ -221,7 +225,7 @@ export const translations = {
     'challenge': 'Challenge',
     'time_remaining': 'Time remaining',
     'preparing_level': 'Preparing level...',
-    'hint_penalty': 'Reveal (-3 pts)',
+    'hint_penalty': 'Reveal (-2 pts)',
     'level_complete_title': 'Well done! Level {0} complete!',
     'level_complete_description': 'You are a true word master.',
     'points_won': 'Points won',
@@ -303,8 +307,10 @@ export const translations = {
     'rules_leaderboard_text': 'Log in with your Google account for your score to be saved and appear on the top players leaderboard!',
 
     // Leaderboard
-    'leaderboard_title': 'Leaderboard',
+    'leaderboard_title': 'Leaderboards',
     'leaderboard_top10': 'Top 10 Players',
+    'top_players': 'Top Players',
+    'recent_scores': 'Recent Scores',
     'rank': 'Rank',
     'player': 'Player',
     'tier': 'Tier',

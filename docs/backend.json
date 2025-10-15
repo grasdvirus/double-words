@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -42,6 +43,40 @@
         }
       },
       "required": [
+        "displayName",
+        "score",
+        "updatedAt"
+      ]
+    },
+    "RecentScoreEntry": {
+      "title": "Recent Score Entry",
+      "type": "object",
+      "description": "Represents a single score entry from a completed game.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The UID of the user who achieved the score."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user at the time of the score."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "URL of the user's profile picture at the time of the score."
+        },
+        "score": {
+          "type": "number",
+          "description": "The score achieved in the game session."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the score was recorded."
+        }
+      },
+      "required": [
+        "uid",
         "displayName",
         "score",
         "updatedAt"
@@ -177,6 +212,12 @@
         "$ref": "#/entities/LeaderboardEntry"
       },
       "description": "Stores the highest score for each user. Publicly readable, but a user can only write to their own entry."
+    },
+    "/recentScores/{scoreId}": {
+      "schema": {
+        "$ref": "#/entities/RecentScoreEntry"
+      },
+      "description": "Stores individual game scores for the 'Recent Scores' feed. Any authenticated user can write to this collection."
     },
     "/duels/{duelId}": {
       "schema": {

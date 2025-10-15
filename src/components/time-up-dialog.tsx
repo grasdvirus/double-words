@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { TimerOff } from "lucide-react";
 import { useTranslations } from "@/hooks/use-translations";
+import { useGame } from "@/hooks/use-game";
+import { useEffect } from "react";
 
 interface TimeUpDialogProps {
   isOpen: boolean;
@@ -22,6 +24,14 @@ interface TimeUpDialogProps {
 
 export function TimeUpDialog({ isOpen, onRetry, solution, hint }: TimeUpDialogProps) {
   const t = useTranslations();
+  const { score, saveFinalScore } = useGame();
+
+  useEffect(() => {
+    if (isOpen) {
+      saveFinalScore(score);
+    }
+  }, [isOpen, score, saveFinalScore]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onRetry()}>

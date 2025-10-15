@@ -2,6 +2,9 @@
 "use client";
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, doc, getDoc, serverTimestamp, setDoc, addDoc } from 'firebase/firestore';
+import { User } from 'firebase/auth';
 
 export interface GameSettings {
   language: 'FR' | 'EN';
@@ -22,6 +25,7 @@ export interface GameContextType extends GameState {
   addWordToHistory: (word: string) => void;
   resetProgress: () => void;
   updateSettings: (newSettings: Partial<GameSettings>) => void;
+  saveFinalScore: (finalScore: number) => Promise<void>;
 }
 
 const defaultState: GameState = {
@@ -40,20 +44,19 @@ export const GameContext = createContext<GameContextType | undefined>(undefined)
 export function GameProvider({ children }: { children: ReactNode }) {
   const [gameState, setGameState] = useState<GameState>(defaultState);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { user } = useUser();
+  const firestore = useFirestore();
 
   useEffect(() => {
     try {
       const savedState = localStorage.getItem('doubleWordsGame');
       if (savedState) {
         const parsedState = JSON.parse(savedState);
-        // Ensure score is a number, handle potential corruption
         if (typeof parsedState.score !== 'number' || isNaN(parsedState.score)) {
           parsedState.score = 0;
         }
-        // Merge saved settings with default settings to avoid missing properties
         const mergedSettings = { ...defaultState.settings, ...parsedState.settings };
         parsedState.settings = mergedSettings;
-
         setGameState(parsedState);
       }
     } catch (error) {
@@ -73,6 +76,40 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [gameState, isLoaded]);
+
+  const saveFinalScore = useCallback(async (finalScore: number) => {
+    if (!user || !firestore || finalScore <= 0) return;
+
+    // 1. Save to recent scores
+    const recentScoresRef = collection(firestore, 'recentScores');
+    const recentScoreData = {
+      uid: user.uid,
+      displayName: user.displayName || "Anonyme",
+      photoURL: user.photoURL || "",
+      score: finalScore,
+      updatedAt: serverTimestamp(),
+    };
+    await addDoc(recentScoresRef, recentScoreData);
+
+    // 2. Update all-time high score
+    const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
+    const docSnap = await getDoc(leaderboardRef);
+
+    if (docSnap.exists()) {
+      const currentHighScore = docSnap.data().score || 0;
+      if (finalScore > currentHighScore) {
+        await setDoc(leaderboardRef, { score: finalScore, updatedAt: serverTimestamp() }, { merge: true });
+      }
+    } else {
+      // First time saving a score
+      await setDoc(leaderboardRef, {
+        displayName: user.displayName || "Anonyme",
+        photoURL: user.photoURL || "",
+        score: finalScore,
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }, [user, firestore]);
 
   const nextLevel = useCallback(() => {
     setGameState(prev => ({
@@ -96,7 +133,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetProgress = useCallback(() => {
-    // Note: The confirmation text is now handled by useTranslations in the component
     setGameState(prev => ({...defaultState, settings: prev.settings}));
   }, []);
 
@@ -114,10 +150,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     addWordToHistory,
     resetProgress,
     updateSettings,
+    saveFinalScore,
   };
 
   if (!isLoaded) {
-    return null; // Or a loading spinner
+    return null;
   }
 
   return (
