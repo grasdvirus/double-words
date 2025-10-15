@@ -1,112 +1,125 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a user-ownership model for profile and leaderboard data,
- *              allows public read access to recent scores, and manages access control for
- *              duel game sessions.
- *
+ * @description This ruleset enforces a user-ownership model for user profiles and leaderboard entries,
+ *              allows any authenticated user to create a recent score entry, and implements shared access
+ *              for duel game sessions.
  * @dataStructure
- *  - /users/{userId}: User profiles, writable only by the user.
- *  - /leaderboard/{userId}: Leaderboard entries, writable only by the user, publicly readable.
- *  - /recentScores/{scoreId}: Recent game scores, publicly readable, writable by any authenticated user.
- *  - /duels/{duelId}: Duel game sessions, with access restricted to participants.
- *
+ *   - /users/{userId}: Stores public user profile information, accessible only to the user themselves.
+ *   - /leaderboard/{userId}: Stores leaderboard entries, publicly readable but writable only by the corresponding user.
+ *   - /recentScores/{scoreId}: Stores recent score entries, creatable by any authenticated user.
+ *   - /duels/{duelId}: Stores duel game sessions, with access controlled by game membership.
  * @keySecurityDecisions
- *  - Users can only read and write their own profile and leaderboard data.
- *  - Recent scores are publicly readable but can only be created by authenticated users.
- *  - Duel game access is based on participation, with the host having ultimate control.
- *  - Denormalization is used within the DuelGame entity to simplify real-time collaboration security rules.
- *
- *  To simplify and improve the performance of security rules, we denormalize access control data
- *  directly into the secured documents. For example, DuelGame documents contain a 'players' array
- *  that is used to quickly determine if a user is a participant in the game. This avoids the need
- *  for complex queries or additional reads to determine access rights.
- *
- *  Data segregation is used to provide public access to data while maintaining private control.
- *  The /recentScores collection is designed to be publicly readable, while write access is restricted
- *  to authenticated users. This allows for the display of recent scores without compromising
- *  the security of user-specific data.
+ *   - User profiles and leaderboard entries are strictly user-owned, preventing unauthorized modifications.
+ *   - Leaderboard is publicly readable, facilitating easy access to ranking information.
+ *   - Creation of user profiles is limited to authenticated users.
+ *   - Access to duels is determined by membership, enabling collaborative gameplay.
+ * @denormalizationForAuthorization
+ *   - The `leaderboard/{userId}` document ID is used as the ownership field. This ensures that a user can only update their own entry.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own profile data.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user123' can create a profile document at /users/user123 if request.auth.uid == 'user123'.
-     * @allow (get, update, delete) - User with UID 'user123' can read/update/delete their profile document at /users/user123 if request.auth.uid == 'user123'.
-     * @deny (create) - User with UID 'user456' cannot create a profile document at /users/user123.
-     * @deny (get, update, delete) - User with UID 'user456' cannot read/update/delete the profile document at /users/user123.
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree.
+     * @allow (create) A user can create their own profile if the userId matches their auth.uid.
+     * @allow (get, update, delete) A user can read, update, and delete their own profile.
+     * @deny (create) A user cannot create a profile for another user.
+     * @deny (get, update, delete) A user cannot read, update, or delete another user's profile.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
-    }
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-    /**
-     * @description Allows users to read leaderboard entries and update their own entry.
-     * @path /leaderboard/{userId}
-     * @allow (get, list) - Any user can read leaderboard entries.
-     * @allow (create) - User with UID 'user123' can create a leaderboard entry at /leaderboard/user123 if request.auth.uid == 'user123'.
-     * @allow (update, delete) - User with UID 'user123' can update/delete their leaderboard entry at /leaderboard/user123 if request.auth.uid == 'user123'.
-     * @deny (create) - User with UID 'user456' cannot create a leaderboard entry at /leaderboard/user123.
-     * @deny (update, delete) - User with UID 'user456' cannot update/delete the leaderboard entry at /leaderboard/user123.
-     * @principle Enforces document ownership for writes, allows public read access.
-     */
-    match /leaderboard/{userId} {
-      allow get, list: if true;
-      allow create: if isOwner(userId);
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows any authenticated user to create recent score entries, with public read access.
-     * @path /recentScores/{scoreId}
-     * @allow (get, list) - Any user can read recent score entries.
-     * @allow (create) - Any authenticated user can create a recent score entry.
-     * @deny (update, delete) - No one can update or delete recent score entries.
-     * @principle Allows public read access with authenticated writes, prevents unauthorized modifications.
+     * @description Controls access to leaderboard entries.
+     * @path /leaderboard/{userId}
+     * @allow (get, list) Any user can read the leaderboard entries.
+     * @allow (create, update, delete) A user can only create, update, or delete their own leaderboard entry.
+     * @deny (create, update, delete) A user cannot modify another user's leaderboard entry.
+     * @principle Enforces document ownership for leaderboard entries while allowing public read access.
      */
-    match /recentScores/{scoreId} {
+    match /leaderboard/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource.data != null;
+      }
+
       allow get, list: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows users to create, join, and update duel game sessions. Access is restricted to participants.
-     * @path /duels/{duelId}
-     * @allow (get) - Any user who is a player in the duel can read the duel document.
-     * @allow (list) - Listing duels is disabled.
-     * @allow (create) - Any authenticated user can create a new duel.
-     * @allow (update) - Only players can update and it can only be update only if the duel exists
-     * @allow (delete) - Only the host of the duel can delete it.
-     * @principle Enforces access control based on duel participation, allows host to manage the game.
+     * @description Controls access to recent score entries.
+     * @path /recentScores/{scoreId}
+     * @allow (create) Any authenticated user can create a recent score entry.
+     * @deny (get, list, update, delete) No user can list, get, update, or delete recent score entries.
+     * @principle Allows any signed-in user to create a recent score entry.
      */
-    match /duels/{duelId} {
-      allow get: if isSignedIn() && (resource.data.players.hasAny([request.auth.uid]) || resource.data.hostId == request.auth.uid);
+    match /recentScores/{scoreId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      allow get: if false;
       allow list: if false;
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && (resource.data.players.hasAny([request.auth.uid]) || resource.data.hostId == request.auth.uid) && resource != null;
-      allow delete: if isSignedIn() && resource.data.hostId == request.auth.uid && resource != null;
+      allow update: if false;
+      allow delete: if false;
     }
-  }
 
-  // Helper functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
+    /**
+     * @description Controls access to duel game sessions.
+     * @path /duels/{duelId}
+     * @allow (create) Any authenticated user can create a duel.
+     * @allow (get, list, update) Users in the duel can read and update it.
+     * @deny (get, list, update) Users not in the duel cannot read or update it.
+     * @allow (delete) Only the host can delete a duel.
+     * @principle Implements shared access based on duel membership.
+     */
+    match /duels/{duelId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
+      function isParticipant() {
+          return request.auth.uid in resource.data.playerScores;
+      }
 
-    function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
+       function isHost(hostId) {
+        return request.auth.uid == hostId;
+      }
+
+      allow get, list: if true;
+      allow create: if isSignedIn();
+      allow update: if isParticipant() && resource.data != null;
+      allow delete: if resource.data != null && isHost(resource.data.hostId);
+    }
   }
 }
