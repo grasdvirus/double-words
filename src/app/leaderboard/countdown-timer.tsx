@@ -3,12 +3,15 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface CountdownTimerProps {
   endDate: Date;
 }
 
 export function CountdownTimer({ endDate }: CountdownTimerProps) {
+  const t = useTranslations();
+
   const calculateTimeLeft = () => {
     const difference = +endDate - +new Date();
     let timeLeft = {
@@ -40,7 +43,12 @@ export function CountdownTimer({ endDate }: CountdownTimerProps) {
     return () => clearInterval(timer);
   }, [endDate]);
 
-  const timerComponents = Object.entries(timeLeft).map(([interval, value]) => {
+  const timerComponents = [
+    { interval: 'jours', value: timeLeft.days },
+    { interval: 'heures', value: timeLeft.hours },
+    { interval: 'minutes', value: timeLeft.minutes },
+    { interval: 'secondes', value: timeLeft.seconds },
+  ].map(({ interval, value }) => {
     if (value < 0) return null;
     return (
       <div key={interval} className="flex flex-col items-center">
