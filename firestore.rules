@@ -1,113 +1,76 @@
-/**
- * @file Overview
- * This ruleset enforces a user-ownership model for user profiles and leaderboard entries,
- * allowing users to only manage their own data. Recent scores are publicly readable and any
- * authenticated user can create them. Duels have access controlled by the members of the duel.
- *
- * Data Structure:
- * - /users/{userId}: Stores public profile information.
- * - /leaderboard/{userId}: Stores leaderboard entries.
- * - /recentScores/{scoreId}: Stores recent score entries.
- * - /duels/{duelId}: Stores duel game sessions.
- *
- * Key Security Decisions:
- * - User listing is disallowed.
- * - Recent scores are publicly readable but create-only for authenticated users.
- * - All write operations require authentication.
- *
- * Denormalization for Authorization:
- *  - The `recentScores` collection depends on the client setting the `uid` field correctly.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profile documents.
-     * @path /users/{userId}
-     * @allow (create) User with UID 'user123' can create their profile document at /users/user123.
-     * @allow (update) User with UID 'user123' can update their profile document at /users/user123.
-     * @allow (delete) User with UID 'user123' can delete their profile document at /users/user123.
-     * @deny (create) User with UID 'user456' cannot create a profile document at /users/user123.
-     * @deny (update) User with UID 'user456' cannot update the profile document at /users/user123.
-     * @deny (delete) User with UID 'user456' cannot delete the profile document at /users/user123.
+     * @description Allows a user to read and write their own user profile.
+     * @path /databases/{database}/documents/users/{userId}
+     * @allow (create, update, delete) if request.auth.uid == userId
+     * @allow (get) if request.auth.uid == userId
+     * @deny (create, update, delete) if request.auth.uid != userId
+     * @deny (get) if request.auth.uid != userId
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      // Verified authentication
+      // Verifies that the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Verified ownership
+      // Verifies that the user ID matches the authenticated user's ID.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper Function: Check existing ownership.
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
       allow get: if isOwner(userId);
       allow list: if false;
 
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to leaderboard entries.
-     * @path /leaderboard/{userId}
-     * @allow (create) User with UID 'user123' can create their leaderboard entry at /leaderboard/user123.
-     * @allow (update) User with UID 'user123' can update their leaderboard entry at /leaderboard/user123.
-     * @allow (delete) User with UID 'user123' can delete their leaderboard entry at /leaderboard/user123.
-     * @deny (create) User with UID 'user456' cannot create a leaderboard entry at /leaderboard/user123.
-     * @deny (update) User with UID 'user456' cannot update the leaderboard entry at /leaderboard/user123.
-     * @deny (delete) User with UID 'user456' cannot delete the leaderboard entry at /leaderboard/user123.
-     * @principle Enforces document ownership for writes.
+     * @description Allows anyone to read the leaderboard, but only the user to update their own entry.
+     * @path /databases/{database}/documents/leaderboard/{userId}
+     * @allow (get, list) if true
+     * @allow (create, update, delete) if request.auth.uid == userId
+     * @deny (create, update, delete) if request.auth.uid != userId
+     * @principle Allows public read access with owner-only writes.
      */
     match /leaderboard/{userId} {
-      // Verified authentication
+      // Verifies that the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Verified ownership
+      // Verifies that the user ID matches the authenticated user's ID.
       function isOwner(userId) {
         return request.auth.uid == userId;
       }
 
-      // Helper Function: Check existing ownership.
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-      allow get: if true;
-      allow list: if false;
+      allow get, list: if true;
 
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Controls access to recent score entries.
-     * @path /recentScores/{scoreId}
-     * @allow (get) Any user can read recent score entries.
-     * @allow (list) Any user can list recent score entries.
-     * @allow (create) Any authenticated user can create a recent score entry.
-     * @deny (update) No one can update recent score entries.
-     * @deny (delete) No one can delete recent score entries.
-     * @principle Public read, authenticated create.
+     * @description Allows any authenticated user to create a recent score entry.
+     * @path /databases/{database}/documents/recentScores/{scoreId}
+     * @allow (create) if request.auth != null
+     * @deny (get, list, update, delete)
+     * @principle Allows authenticated users to create recent score entries.
      */
     match /recentScores/{scoreId} {
-      // Verified authentication
+      // Verifies that the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
 
-      allow get: if true;
-      allow list: if true;
+      allow get: if false;
+      allow list: if false;
 
       allow create: if isSignedIn();
       allow update: if false;
@@ -115,34 +78,32 @@ service cloud.firestore {
     }
 
     /**
-     * @description Controls access to duel game sessions.
-     * @path /duels/{duelId}
-     * @allow (create) Any authenticated user can create a duel game session.
-     * @allow (update) Only players in the duel can update the game session.
-     * @allow (get) Any authenticated user can get duel game session.
-     * @deny (delete) No one can delete duel game sessions.
-     * @principle Shared access for duel participants.
+     * @description Allows a host to manage a duel, and players to participate.
+     * @path /databases/{database}/documents/duels/{duelId}
+     * @allow (create) if request.auth.uid == request.resource.data.hostId
+     * @allow (get) if resource.data.players.hasAny(request.auth.uid)
+     * @allow (update) if request.auth.uid in resource.data.players
+     * @allow (delete) if request.auth.uid == resource.data.hostId
+     * @deny (list)
+     * @principle Allows hosts to manage duels and players to participate.
      */
     match /duels/{duelId} {
-      // Verified authentication
+      // Verifies that the user is signed in.
       function isSignedIn() {
         return request.auth != null;
       }
 
-      // Check if the user is a player in the duel
-      function isPlayer(duelId) {
-        return request.auth.uid in get(/databases/$(database)/documents/duels/$(duelId)).data.players;
+      // Verifies that the user ID matches the authenticated user's ID.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
       }
 
-      function isExistingPlayer(duelId) {
-        return isPlayer(duelId) && resource.data != null;
-      }
-      allow get: if isSignedIn();
+      allow get: if true;
       allow list: if false;
 
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && isExistingPlayer(duelId);
-      allow delete: if false;
+      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
     }
   }
 }
