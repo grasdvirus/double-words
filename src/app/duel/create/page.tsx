@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp, doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { Users, Copy, Clock, Play } from 'lucide-react';
+import { Users, Copy, Clock, Play, Loader2 } from 'lucide-react';
 import { SiteHeader } from '@/components/site-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +37,7 @@ export default function CreateDuelPage() {
   const [gameCode, setGameCode] = useState<string | null>(null);
   const [duelId, setDuelId] = useState<string | null>(null);
   const [players, setPlayers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleCreateDuel = async () => {
     if (!user || !firestore) {
@@ -50,7 +50,7 @@ export default function CreateDuelPage() {
       return;
     }
 
-    setIsLoading(true);
+    setIsCreating(true);
     const code = generateGameCode();
     const hostPlayer = {
       uid: user.uid,
@@ -61,7 +61,7 @@ export default function CreateDuelPage() {
     const duelData = {
         gameCode: code,
         hostId: user.uid,
-        status: 'waiting',
+        status: 'waiting' as const,
         players: [hostPlayer],
         playerScores: { [user.uid]: 0 },
         duration: parseInt(duration, 10),
@@ -74,23 +74,39 @@ export default function CreateDuelPage() {
     const duelsCollection = collection(firestore, 'duels');
     
     try {
-        const docRef = await addDoc(duelsCollection, duelData);
+        const docRef = await addDoc(duelsCollection, duelData).catch(serverError => {
+            const permissionError = new FirestorePermissionError({
+                path: duelsCollection.path,
+                operation: 'create',
+                requestResourceData: duelData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            throw permissionError; // Re-throw to be caught by outer try-catch
+        });
 
         // Create the game code mapping document
         const gameCodeRef = doc(firestore, 'duelGameCodes', code);
-        await setDoc(gameCodeRef, { duelId: docRef.id });
+        await setDoc(gameCodeRef, { duelId: docRef.id }).catch(serverError => {
+             const permissionError = new FirestorePermissionError({
+                path: gameCodeRef.path,
+                operation: 'create',
+                requestResourceData: { duelId: docRef.id },
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            throw permissionError;
+        });
 
         setGameCode(code);
         setDuelId(docRef.id);
-    } catch (serverError) {
-        const permissionError = new FirestorePermissionError({
-            path: duelsCollection.path,
-            operation: 'create',
-            requestResourceData: duelData,
+    } catch (error) {
+        console.error("Error creating duel:", error);
+        showNotification({
+            title: t('error'),
+            message: "Impossible de créer la partie. Vérifiez les règles de sécurité Firestore.",
+            type: 'error',
         });
-        errorEmitter.emit('permission-error', permissionError);
     } finally {
-        setIsLoading(false);
+        setIsCreating(false);
     }
   };
 
@@ -128,7 +144,7 @@ export default function CreateDuelPage() {
     }
   };
   
-  if (isLoading) {
+  if (isCreating) {
     return (
       <div className="flex min-h-screen items-center justify-center flex-col gap-4">
         <div className="section-center">
@@ -231,8 +247,8 @@ export default function CreateDuelPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                     <Button onClick={handleCreateDuel} className="w-full" disabled={isUserLoading}>
-                        <Play className="mr-2 h-4 w-4"/>
+                     <Button onClick={handleCreateDuel} className="w-full" disabled={isUserLoading || isCreating}>
+                        {isCreating ? <Loader2 className="animate-spin" /> : <Play className="mr-2 h-4 w-4"/>}
                         {t('create_game_button')}
                     </Button>
                 </CardContent>
