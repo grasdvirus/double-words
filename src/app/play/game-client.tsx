@@ -479,7 +479,14 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
               )}
             </div>
             <CardTitle className="text-2xl font-semibold">
-              {isTrainingMode ? t('training_mode') : `${t('challenge')}: ${currentLevelData?.description}`}
+              {isTrainingMode ? (
+                <>
+                  <span className="text-muted-foreground font-normal">{t('training_mode')} - </span>
+                  {`${t('challenge')}: ${currentLevelData?.description}`}
+                </>
+              ) : (
+                `${t('challenge')}: ${currentLevelData?.description}`
+              )}
             </CardTitle>
             {!isTrainingMode && <Progress value={progressPercentage} className="w-full mt-4" />}
           </CardHeader>
