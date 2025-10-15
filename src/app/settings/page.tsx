@@ -7,24 +7,38 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useGame } from "@/hooks/use-game";
-import { ArrowLeft, Eraser, Award } from "lucide-react";
+import { ArrowLeft, Eraser, Award, Loader2 } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { useRouter } from "next/navigation";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { useTranslations } from "@/hooks/use-translations";
+import { useDoc, useFirestore, useUser } from "@/firebase";
+import { useMemoFirebase } from "@/firebase/provider";
+import { doc } from "firebase/firestore";
 
-// Données fictives pour le palmarès
-const userPalmares = {
-  firstPlace: 2,
-  secondPlace: 5,
-  thirdPlace: 8,
-};
-
+interface UserProfile {
+    palmares?: {
+        firstPlace?: number;
+        secondPlace?: number;
+        thirdPlace?: number;
+    }
+}
 
 export default function SettingsPage() {
   const { settings, updateSettings, resetProgress } = useGame();
   const router = useRouter();
   const t = useTranslations();
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user?.uid]);
+
+  const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
+
+  const palmares = userProfile?.palmares;
 
   const handleReset = () => {
     if(window.confirm(t('reset_progress_confirm'))) {
@@ -60,21 +74,29 @@ export default function SettingsPage() {
                 <CardDescription>Votre historique de classement à la fin de chaque saison.</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-3 gap-4 text-center">
-                <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
-                  <span className="text-4xl">🥇</span>
-                  <p className="text-2xl font-bold">{userPalmares.firstPlace}</p>
-                  <p className="text-sm text-muted-foreground">1ère Place</p>
-                </div>
-                 <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
-                  <span className="text-4xl">🥈</span>
-                  <p className="text-2xl font-bold">{userPalmares.secondPlace}</p>
-                  <p className="text-sm text-muted-foreground">2ème Place</p>
-                </div>
-                 <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
-                  <span className="text-4xl">🥉</span>
-                  <p className="text-2xl font-bold">{userPalmares.thirdPlace}</p>
-                  <p className="text-sm text-muted-foreground">3ème Place</p>
-                </div>
+                {isLoading ? (
+                    <div className="col-span-3 flex justify-center items-center h-24">
+                        <Loader2 className="animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
+                          <span className="text-4xl">🥇</span>
+                          <p className="text-2xl font-bold">{palmares?.firstPlace || 0}</p>
+                          <p className="text-sm text-muted-foreground">1ère Place</p>
+                        </div>
+                         <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
+                          <span className="text-4xl">🥈</span>
+                          <p className="text-2xl font-bold">{palmares?.secondPlace || 0}</p>
+                          <p className="text-sm text-muted-foreground">2ème Place</p>
+                        </div>
+                         <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
+                          <span className="text-4xl">🥉</span>
+                          <p className="text-2xl font-bold">{palmares?.thirdPlace || 0}</p>
+                          <p className="text-sm text-muted-foreground">3ème Place</p>
+                        </div>
+                    </>
+                )}
               </CardContent>
             </Card>
 
