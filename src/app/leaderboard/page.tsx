@@ -8,14 +8,12 @@ import { ArrowLeft, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "@/hooks/use-translations";
 import { CountdownTimer } from "./countdown-timer";
+import { useGame } from "@/hooks/use-game";
 
 export default function LeaderboardPage() {
   const router = useRouter();
   const t = useTranslations();
-
-  // Définir la date de fin de saison à 2 jours à partir de maintenant.
-  const seasonEndDate = new Date();
-  seasonEndDate.setDate(seasonEndDate.getDate() + 2);
+  const { seasonEndDate } = useGame();
 
   return (
     <div className="relative flex min-h-screen flex-col">

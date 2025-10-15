@@ -3,7 +3,7 @@
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useUser, useFirestore } from '@/firebase';
-import { collection, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, serverTimestamp, setDoc, deleteDoc } from 'firebase/firestore';
 
 export interface GameSettings {
   language: 'FR' | 'EN';
@@ -16,6 +16,7 @@ export interface GameState {
   score: number;
   history: string[];
   settings: GameSettings;
+  seasonEndDate: Date;
 }
 
 export interface GameContextType extends GameState {
@@ -27,6 +28,23 @@ export interface GameContextType extends GameState {
   saveFinalScore: (finalScore: number) => Promise<void>;
 }
 
+const getInitialSeasonEndDate = (): Date => {
+  const storedDate = typeof window !== 'undefined' ? localStorage.getItem('seasonEndDate') : null;
+  if (storedDate) {
+    const date = new Date(storedDate);
+    if (date.getTime() > Date.now()) {
+      return date;
+    }
+  }
+  // If no valid date, set a new one 2 days from now
+  const newEndDate = new Date();
+  newEndDate.setDate(newEndDate.getDate() + 2);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('seasonEndDate', newEndDate.toISOString());
+  }
+  return newEndDate;
+};
+
 const defaultState: GameState = {
   level: 1,
   score: 0,
@@ -36,6 +54,7 @@ const defaultState: GameState = {
     soundVolume: 0.5,
     enableSound: true,
   },
+  seasonEndDate: getInitialSeasonEndDate(),
 };
 
 export const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -45,6 +64,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const { user } = useUser();
   const firestore = useFirestore();
+
+  const checkSeason = useCallback(() => {
+    if (new Date().getTime() >= gameState.seasonEndDate.getTime()) {
+      // Season is over
+      const newEndDate = new Date();
+      newEndDate.setDate(newEndDate.getDate() + 2);
+      
+      setGameState(prev => ({
+        ...prev,
+        seasonEndDate: newEndDate
+      }));
+
+      localStorage.setItem('seasonEndDate', newEndDate.toISOString());
+      
+      // Reset user's leaderboard score
+      if (user && firestore) {
+        const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
+        // We delete the doc to reset score to 0 for next season.
+        // It will be re-created on next score save.
+        deleteDoc(leaderboardRef);
+      }
+    }
+  }, [gameState.seasonEndDate, user, firestore]);
 
   useEffect(() => {
     try {
@@ -56,7 +98,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
         const mergedSettings = { ...defaultState.settings, ...parsedState.settings };
         parsedState.settings = mergedSettings;
-        setGameState(parsedState);
+
+        // Ensure seasonEndDate is part of the loaded state
+        const endDate = getInitialSeasonEndDate();
+        setGameState({...parsedState, seasonEndDate: endDate });
+
+      } else {
+         setGameState(prev => ({...prev, seasonEndDate: getInitialSeasonEndDate()}));
       }
     } catch (error) {
       console.error("Failed to load game state from localStorage", error);
@@ -68,8 +116,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isLoaded) {
+      checkSeason();
+      const interval = setInterval(checkSeason, 60000); // Check every minute
+      return () => clearInterval(interval);
+    }
+  }, [isLoaded, checkSeason]);
+
+
+  useEffect(() => {
+    if (isLoaded) {
       try {
-        localStorage.setItem('doubleWordsGame', JSON.stringify(gameState));
+        const stateToSave = { ...gameState, seasonEndDate: gameState.seasonEndDate.toISOString() };
+        localStorage.setItem('doubleWordsGame', JSON.stringify(stateToSave));
       } catch (error) {
         console.error("Failed to save game state to localStorage", error);
       }
@@ -84,14 +142,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
       displayName: user.displayName || "Anonyme",
       photoURL: user.photoURL || "",
     };
-
-    // This collection is no longer used
-    // const recentScoreRef = doc(firestore, 'recentScores', user.uid);
-    // await setDoc(recentScoreRef, {
-    //   ...userData,
-    //   score: finalScore,
-    //   updatedAt: serverTimestamp(),
-    // });
 
     const leaderboardRef = doc(firestore, 'leaderboard', user.uid);
     const docSnap = await getDoc(leaderboardRef);
@@ -136,7 +186,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetProgress = useCallback(() => {
-    setGameState(prev => ({...defaultState, settings: prev.settings}));
+    setGameState(prev => ({...defaultState, settings: prev.settings, seasonEndDate: prev.seasonEndDate}));
   }, []);
 
   const updateSettings = useCallback((newSettings: Partial<GameSettings>) => {
