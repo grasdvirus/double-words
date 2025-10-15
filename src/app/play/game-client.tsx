@@ -120,7 +120,7 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
         solution = predefinedLevel.solutionWord;
     } else {
         challenge = generateRandomChallenge();
-        description = settings.language === 'FR' ? `Trouve un mot contenant "${challenge}"` : `Find a word containing "${challenge}"`;
+        description = settings.language === 'FR' ? `Contient "${challenge}"` : `Contains "${challenge}"`;
         solution = undefined; 
     }
 
@@ -436,6 +436,20 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
     );
   };
 
+  const renderChallengeTitle = () => {
+    if (!currentLevelData) return null;
+    const description = currentLevelData.description;
+    const parts = description.split('"');
+    
+    return (
+      <>
+        {parts[0]}
+        {parts[1] && <span className="text-3xl font-black text-primary mx-1 uppercase">"{parts[1]}"</span>}
+        {parts[2]}
+      </>
+    )
+  }
+
   if (isInitialLoading) {
     return (
       <div className="container py-4 md:py-8 flex flex-col items-center justify-center flex-1">
@@ -478,15 +492,9 @@ export function GameClient({ isTrainingMode }: { isTrainingMode: boolean }) {
                 </div>
               )}
             </div>
-            <CardTitle className="text-2xl font-semibold">
-              {isTrainingMode ? (
-                <>
-                  <span className="text-muted-foreground font-normal">{t('training_mode')} - </span>
-                  {`${t('challenge')}: ${currentLevelData?.description}`}
-                </>
-              ) : (
-                `${t('challenge')}: ${currentLevelData?.description}`
-              )}
+            <CardTitle className="text-2xl font-semibold flex items-center justify-center flex-wrap">
+              {isTrainingMode && <span className="text-muted-foreground font-normal mr-2">{t('training_mode')} -</span>}
+              <span className="mr-2">{t('challenge')}:</span> {renderChallengeTitle()}
             </CardTitle>
             {!isTrainingMode && <Progress value={progressPercentage} className="w-full mt-4" />}
           </CardHeader>

@@ -363,6 +363,20 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
     )
   }
   
+  const renderChallengeTitle = () => {
+    if (!currentLevelData) return null;
+    const description = currentLevelData.description;
+    const parts = description.split('"');
+    
+    return (
+      <>
+        {parts[0]}
+        {parts[1] && <span className="text-3xl font-black text-primary mx-1 uppercase">"{parts[1]}"</span>}
+        {parts[2]}
+      </>
+    )
+  }
+  
   const progressPercentage = maxLevel > 0 ? (level / maxLevel) * 100 : 0;
 
   return (
@@ -385,8 +399,8 @@ export function TournamentGameClient({ theme, category }: TournamentGameClientPr
                 <p key={`score-${scoreKey}`} className="text-2xl font-bold text-primary animate-pop-in">{score}</p>
               </div>
             </div>
-             <CardTitle className="text-2xl font-semibold">
-              {t('challenge')}: {currentLevelData?.description}
+             <CardTitle className="text-2xl font-semibold flex items-center justify-center flex-wrap">
+              <span className="mr-2">{t('challenge')}:</span> {renderChallengeTitle()}
             </CardTitle>
             <Progress value={progressPercentage} className="w-full mt-4" />
           </CardHeader>

@@ -301,6 +301,20 @@ export default function DuelPlayPage() {
       </div>
     );
   };
+  
+  const renderChallengeTitle = () => {
+    if (!currentChallenge) return null;
+    const description = currentChallenge.description;
+    const parts = description.split('"');
+    
+    return (
+      <>
+        {parts[0]}
+        {parts[1] && <span className="text-3xl font-black text-primary mx-1 uppercase">"{parts[1]}"</span>}
+        {parts[2]}
+      </>
+    )
+  }
 
   if (isLoading || !duelData || !me) {
     return (
@@ -463,8 +477,8 @@ export default function DuelPlayPage() {
                 <div className="w-full max-w-3xl flex flex-col gap-4">
                      <Card>
                         <CardHeader className="text-center">
-                            <CardTitle className="text-2xl font-semibold">
-                            {t('challenge')}: {currentChallenge.description}
+                            <CardTitle className="text-2xl font-semibold flex items-center justify-center flex-wrap">
+                               <span className="mr-2">{t('challenge')}:</span> {renderChallengeTitle()}
                             </CardTitle>
                         </CardHeader>
                     </Card>
