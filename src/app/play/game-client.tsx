@@ -64,6 +64,7 @@ export function GameClient() {
   const [nextLevelData, setNextLevelData] = useState<LevelData | null>(null);
 
   const [disabledLetterIndexes, setDisabledLetterIndexes] = useState<boolean[]>([]);
+  const [revealedIndexes, setRevealedIndexes] = useState<number[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(LEVEL_TIME);
   const [isWrong, setIsWrong] = useState(false);
   const [scoreKey, setScoreKey] = useState(0);
@@ -166,6 +167,7 @@ export function GameClient() {
     setCurrentLevelData(data);
     setInputValue("");
     setDisabledLetterIndexes(new Array(data.jumbledLetters.length).fill(false));
+    setRevealedIndexes([]);
     setShowLevelComplete(false);
     setShowTimeUp(false);
     
@@ -225,21 +227,46 @@ export function GameClient() {
   };
   
   const handleBackspace = () => {
-     if (inputValue.length === 0 || showTimeUp || !currentLevelData) return;
-    
-    const lastChar = inputValue[inputValue.length - 1];
+    if (inputValue.length === 0 || showTimeUp || !currentLevelData) return;
+  
+    const lastCharIndex = inputValue.length - 1;
+    const lastChar = inputValue[lastCharIndex];
+  
+    // If the last letter was revealed by a hint, do nothing on backspace.
+    // The user has to reset if they want to change it. This is simpler.
+    if (revealedIndexes.includes(lastCharIndex)) {
+        return;
+    }
+  
     setInputValue((prev) => prev.slice(0, -1));
+  
+    // Re-enable the corresponding letter in the grid
+    const charCountsInInput = inputValue.slice(0, -1).split('').filter(c => c === lastChar).length;
+    let enabledCount = 0;
+    let indexToEnable = -1;
 
-    let reEnabled = false;
-    for(let i = disabledLetterIndexes.length - 1; i >= 0; i--) {
-        if(currentLevelData.jumbledLetters[i] === lastChar && disabledLetterIndexes[i] && !reEnabled) {
-            setDisabledLetterIndexes(prev => {
-                const newDisabled = [...prev];
-                newDisabled[i] = false;
-                return newDisabled;
-            });
-            reEnabled = true;
+    for (let i = 0; i < currentLevelData.jumbledLetters.length; i++) {
+        if (currentLevelData.jumbledLetters[i] === lastChar) {
+            const isRevealed = revealedIndexes.some(revealedIdx => 
+                inputValue[revealedIdx] === lastChar && 
+                currentLevelData.jumbledLetters[i] === lastChar
+            );
+            if (disabledLetterIndexes[i] && !isRevealed) {
+                if (enabledCount === charCountsInInput) {
+                    indexToEnable = i;
+                    break;
+                }
+                enabledCount++;
+            }
         }
+    }
+
+    if (indexToEnable !== -1) {
+        setDisabledLetterIndexes(prev => {
+            const newDisabled = [...prev];
+            newDisabled[indexToEnable] = false;
+            return newDisabled;
+        });
     }
   };
 
@@ -253,6 +280,55 @@ export function GameClient() {
       });
       updateScore(-2); // Penalize for using hint
     }
+  };
+  
+  const handleRevealLetter = () => {
+      if (!currentLevelData || revealedIndexes.length > 0 || inputValue.length >= currentLevelData.solutionWord.length) return;
+      
+      updateScore(-2);
+
+      const solution = currentLevelData.solutionWord;
+      const currentInput = inputValue.split('');
+      
+      let possibleIndexes: number[] = [];
+      for(let i=0; i < solution.length; i++) {
+          if (currentInput[i] !== solution[i]) {
+              possibleIndexes.push(i);
+          }
+      }
+
+      if(possibleIndexes.length === 0) return;
+
+      const revealIndex = possibleIndexes[Math.floor(Math.random() * possibleIndexes.length)];
+      const letterToReveal = solution[revealIndex];
+
+      // Disable the first available matching letter in the grid
+      let gridIndexToDisable = -1;
+      for (let i = 0; i < currentLevelData.jumbledLetters.length; i++) {
+          if (currentLevelData.jumbledLetters[i] === letterToReveal && !disabledLetterIndexes[i]) {
+              gridIndexToDisable = i;
+              break;
+          }
+      }
+
+      if (gridIndexToDisable !== -1) {
+          const newDisabled = [...disabledLetterIndexes];
+          newDisabled[gridIndexToDisable] = true;
+          setDisabledLetterIndexes(newDisabled);
+          
+          // Update input value
+          let newInputValue = "";
+          for(let i=0; i < solution.length; i++) {
+              if (i === revealIndex) {
+                  newInputValue += letterToReveal;
+              } else {
+                  newInputValue += inputValue[i] || "";
+              }
+          }
+
+          setInputValue(newInputValue.slice(0, solution.length));
+          setRevealedIndexes(prev => [...prev, revealIndex]);
+      }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -268,6 +344,7 @@ export function GameClient() {
       setTimeout(() => {
         setIsWrong(false);
         setInputValue("");
+        setRevealedIndexes([]);
         if(currentLevelData) {
             setDisabledLetterIndexes(new Array(currentLevelData.jumbledLetters.length).fill(false));
         }
@@ -362,13 +439,15 @@ export function GameClient() {
         <div className={cn("flex justify-center items-center gap-2 flex-wrap", isWrong && "animate-shake")}>
           {Array.from({ length: currentLevelData.solutionWord.length }).map((_, i) => {
             const char = inputValue[i] || '';
+            const isRevealed = revealedIndexes.includes(i);
             return (
               <div
                   key={i}
                   className={cn(
                       "flex h-12 w-12 items-center justify-center rounded-md border text-2xl font-bold uppercase",
                       "bg-card transition-all duration-300",
-                      char && "border-primary ring-2 ring-primary animate-pop-in"
+                      char && !isRevealed && "border-primary ring-2 ring-primary animate-pop-in",
+                      isRevealed && "border-accent ring-2 ring-accent text-accent animate-pop-in"
                   )}
               >
                   {char}
@@ -428,8 +507,12 @@ export function GameClient() {
           </CardHeader>
         </Card>
         
-        <div className="flex justify-center mb-2">
+        <div className="flex justify-center gap-2 mb-2">
             <Button variant="outline" size="sm" onClick={showHint} disabled={isSubmitting || showTimeUp || showLevelComplete}>
+                <Lightbulb className="mr-2 h-4 w-4" />
+                {t('hint')}
+            </Button>
+             <Button variant="outline" size="sm" onClick={handleRevealLetter} disabled={isSubmitting || showTimeUp || showLevelComplete || revealedIndexes.length > 0 || !currentLevelData}>
                 <Lightbulb className="mr-2 h-4 w-4" />
                 {t('hint_penalty')}
             </Button>
