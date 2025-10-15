@@ -39,8 +39,8 @@ export function ThemeSwitcher() {
         <label htmlFor="theme-switch">
           <div className="toggle"></div>
           <div className="names">
-            <p className="light">Light</p>
-            <p className="dark">Dark</p>
+            <p className="light">Clair</p>
+            <p className="dark">Sombre</p>
           </div>
         </label>
       </div>
